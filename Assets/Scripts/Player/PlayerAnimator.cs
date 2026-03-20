@@ -3,7 +3,6 @@
 using Mirror;
 using UnityEngine;
 
-// NetworkBehaviour instead of MonoBehaviour — gives us reliable isLocalPlayer
 public class PlayerAnimator : NetworkBehaviour
 {
     // ── References ────────────────────────────────────────────────────────────
@@ -23,14 +22,8 @@ public class PlayerAnimator : NetworkBehaviour
 
     private void Update( )
     {
-        // isLocalPlayer is now correct — PlayerAnimator IS a NetworkBehaviour
-        // so Mirror sets isLocalPlayer properly on this component
         if (!isLocalPlayer) return;
         if (_movement == null) return;
-
-        if (Time.frameCount % 60 == 0)
-            RiftLogger.Log($"Animator update — isMoving:{_movement.IsMoving} isGrounded:{_movement.IsGrounded} velY:{_movement.VerticalSpeed:F1}", this);
-
 
         _animator.SetBool("IsMoving", _movement.IsMoving);
         _animator.SetBool("IsGrounded", _movement.IsGrounded);
@@ -38,7 +31,6 @@ public class PlayerAnimator : NetworkBehaviour
         _animator.SetBool("IsSprinting", _movement._sprintHeld);
     }
 
-    // ── Remote player setters — called by SyncVar hooks in PlayerMovement ─────
 
     public void SetMoving(bool val) => _animator.SetBool("IsMoving", val);
     public void SetSprinting(bool val) => _animator.SetBool("IsSprinting", val);

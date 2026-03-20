@@ -46,7 +46,6 @@ public class MageEnemy : EnemyBase
             return;
         }
 
-        // Face the target regardless of movement
         Vector2 dir = ( target.transform.position - transform.position ).normalized;
 
         if (dir.x != 0f)
@@ -58,12 +57,10 @@ public class MageEnemy : EnemyBase
 
         if (dist < preferredRange)
         {
-            // Too close — back away from the player
             rb.linearVelocity = new Vector2(-dir.x * retreatSpeed, rb.linearVelocity.y);
             RpcSetMoving(true);
         } else
         {
-            // Good range — stand still and shoot
             rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
             RpcSetMoving(false);
         }
@@ -87,7 +84,6 @@ public class MageEnemy : EnemyBase
             return;
         }
 
-        // Use firePoint if assigned, otherwise fire from center
         Vector3 spawnPos = firePoint != null ? firePoint.position : transform.position;
 
         Vector2 fireDir = ( targetPos - spawnPos ).normalized;

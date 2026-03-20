@@ -191,8 +191,6 @@ public class RiftNetworkManager : NetworkManager
         if (sceneName != stage1Scene && sceneName != stage2Scene) return;
         if (_confirmedChoices.Count == 0) return;
 
-        RiftLogger.System($"Scene loaded: {sceneName} — spawning character prefabs", this);
-
         // Get start positions — collect them all so each player gets a unique one
         Transform pos1 = GetStartPosition( );
         Transform pos2 = GetStartPosition( );

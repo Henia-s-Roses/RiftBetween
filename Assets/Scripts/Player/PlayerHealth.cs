@@ -6,6 +6,8 @@ using UnityEngine;
 
 public class PlayerHealth : NetworkBehaviour
 {
+    private PlayerAnimator _animator;
+
     // ── Synced state ──────────────────────────────────────────────────────────
 
     [SyncVar(hook = nameof(OnHPChanged))]
@@ -15,9 +17,14 @@ public class PlayerHealth : NetworkBehaviour
 
     // ── Runtime ───────────────────────────────────────────────────────────────
 
-    private bool _isInvincible; 
+    private bool _isInvincible;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    private void Awake( )
+    {
+        _animator = GetComponent<PlayerAnimator>();
+    }
 
     public override void OnStartServer( )
     {
@@ -36,11 +43,8 @@ public class PlayerHealth : NetworkBehaviour
             return;
         }
 
-        // Give shields or other damage modifiers a chance to absorb/reduce the hit
-        OnBeforeDamage?.Invoke(ref amount);
 
-        // If a shield fully absorbed the hit, amount is now 0
-        if (amount <= 0) return;
+        _animator.SetKnockback(true);
 
         _currentHP = Mathf.Max(0f, _currentHP - amount);
         RiftLogger.Log($"Took {amount} dmg — HP {_currentHP}/{GameConfig.PLAYER_MAX_HP}", this);

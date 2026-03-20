@@ -16,7 +16,6 @@ public class RiftNetworkPlayer : NetworkBehaviour
     [SyncVar(hook = nameof(OnPlayerIndexChanged))]
     public int playerIndex = 0;
 
-    // Character this player has selected — synced so both clients see each other's pick
     [SyncVar(hook = nameof(OnCharacterChanged))]
     public CharacterChoice selectedCharacter = CharacterChoice.None;
 

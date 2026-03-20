@@ -3,6 +3,8 @@
 
 // to hold and track game stat and other game info for access of any scripts
 
+using System.Collections.Generic;
+
 public static class GameSession
 {
     // -- Current game state ----------------------------------------------------
@@ -10,6 +12,12 @@ public static class GameSession
     public static WorldState ActiveWorld = WorldState.WorldA; 
     public static bool IsStage2 = false;
     public static bool BossDefeated = false;
+
+    public static Dictionary<int, CharacterChoice> PlayerChoices
+    = new Dictionary<int, CharacterChoice>( ); // key = playerIndex, value = choice
+
+    public static Dictionary<int, string> PlayerPrefabNames
+        = new Dictionary<int, string>( );
 
     // -- score tracking --------------------------------------------------------
     public static int TotalScore = 0;
@@ -31,17 +39,17 @@ public static class GameSession
         ActiveWorld = WorldState.WorldA;
         IsStage2 = false;
         BossDefeated = false;
-
         TotalScore = 0;
         KillScore = 0;
         SwapScore = 0;
         ReviveScore = 0;
         BonusScore = 0;
-
         TotalKills = 0;
         SwapsSurvived = 0;
         SuccessfulRevives = 0;
         CompletedNoWipe = true;
+        PlayerChoices.Clear( );
+        PlayerPrefabNames.Clear( );
     }
 
     // -- OTHERZS ---------------------------
