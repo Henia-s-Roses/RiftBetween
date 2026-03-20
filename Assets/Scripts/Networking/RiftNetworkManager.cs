@@ -115,6 +115,7 @@ public class RiftNetworkManager : NetworkManager
 
         // set game session phase to stage 1 
         GameSession.CurrentPhase = GamePhase.Stage1;    // first stage
+        AudioManager.Instance.PlayGameStart( );
         AudioManager.Instance.PlayMusicWorldA( );
         ServerChangeScene(stage1Scene); // load firt stage after character selection and confirmation
     }

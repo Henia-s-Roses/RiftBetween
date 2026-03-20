@@ -37,7 +37,7 @@ public class RiftNetworkPlayer : NetworkBehaviour
     [Command]
     public void CmdSelectCharacter(CharacterChoice choice)
     {
-        AudioManager.Instance.PlayButtonClick( );
+        AudioManager.Instance.PlayCharacterSelect( );
 
         // check other players (with networkplayer script) if taken na yung character chosen
         foreach (var netPlayer in FindObjectsByType<RiftNetworkPlayer>(FindObjectsSortMode.None))
