@@ -18,18 +18,15 @@ public class PlayerAttack : NetworkBehaviour
     [SerializeField] private float hitboxDuration = 0.15f;
 
     [Header("Mode")]
-    [Tooltip("Set automatically from character choice — Melee for Knight, Projectile for Wanderer")]
     [SerializeField] private AttackMode attackMode = AttackMode.Melee;
 
     [Header("Melee References")]
-    [Tooltip("Child object with a Collider2D (Trigger) — the swing hitbox. Knight only.")]
     [SerializeField] private GameObject attackHitbox;
 
     [Header("Projectile References")]
     [Tooltip("OrbProjectile prefab — Wanderer only")]
     [SerializeField] private GameObject orbPrefab;
 
-    [Tooltip("Empty child Transform at the tip of the wand/hand — orb spawns here")]
     [SerializeField] private Transform projectileOrigin;
 
     private PlayerAnimator _playerAnimator;
@@ -39,8 +36,6 @@ public class PlayerAttack : NetworkBehaviour
     private float _lastAttackTime = -999f;
     private bool _attackLocked;
 
-    // Cached facing direction — updated by PlayerMovement each frame.
-    // 1 = facing right, -1 = facing left.
     private float _facingDirection = 1f;
 
     // ── Setup ─────────────────────────────────────────────────────────────────
@@ -85,7 +80,6 @@ public class PlayerAttack : NetworkBehaviour
                 break;
 
             case AttackMode.Projectile:
-                // Play a local visual cue here if needed (e.g. wand flash)
                 CmdFireProjectile(_facingDirection);
                 break;
         }

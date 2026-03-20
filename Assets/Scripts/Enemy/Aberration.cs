@@ -118,8 +118,7 @@ public class BossController : EnemyBase
         enemyAnimator?.SetMoving(moving);
     }
 
-    // Fires on all clients just before the scene loads —
-    // use this to show a "Stage Clear" banner or fade out if you have one
+
     [ClientRpc]
     private void RpcPrepareTransition( )
     {

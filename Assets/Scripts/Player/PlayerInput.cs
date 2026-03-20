@@ -1,9 +1,4 @@
 ﻿// PlayerInput.cs
-// Reads from the RiftInputActions asset and dispatches to sibling components.
-// Only active on the local player — all input is gated by isLocalPlayer.
-//
-// This script does NOT implement any logic itself.
-// It purely reads input and calls methods on other components.
 
 using Mirror;
 using UnityEngine;
@@ -15,7 +10,6 @@ public class PlayerInput : NetworkBehaviour
 
     private PlayerMovement _movement;
     private PlayerAttack _attack;
-    private PlayerRevive _revive;   // Optional — may not be on prefab during early testing
 
     // ── Cached input state ────────────────────────────────────────────────────
 
@@ -23,8 +17,7 @@ public class PlayerInput : NetworkBehaviour
     private bool _reviveHeld;
 
     // ── Cached action references ──────────────────────────────────────────────
-    // Stored so we can unsubscribe the exact same delegate in OnDestroy.
-    // Lambda subscriptions can't be unsubscribed — named methods are required.
+
 
     private InputAction _moveAction;
     private InputAction _jumpAction;
@@ -40,7 +33,6 @@ public class PlayerInput : NetworkBehaviour
     {
         _movement = GetComponent<PlayerMovement>( );
         _attack = GetComponent<PlayerAttack>( );
-        _revive = GetComponent<PlayerRevive>( );  // Null-safe — not required to exist yet
     }
 
     public override void OnStartLocalPlayer( )
@@ -52,9 +44,6 @@ public class PlayerInput : NetworkBehaviour
 
     private void OnDestroy( )
     {
-        // CRITICAL: always unsubscribe on destroy.
-        // The Input System holds references to these delegates — if we don't
-        // unsubscribe, callbacks fire on the destroyed object next input frame.
         UnsubscribeInputEvents( );
         RiftLogger.Log("Input unsubscribed on destroy", this);
     }
@@ -91,19 +80,11 @@ public class PlayerInput : NetworkBehaviour
         // Attack — press only
         _attackAction.started += OnAttackStarted;
 
-        // Abilities — stubs until PlayerAbilities is implemented
-        _ability1Action.started += OnAbility1Started;
-        _ability2Action.started += OnAbility2Started;
-
-        // Revive — held
-        _reviveAction.started += OnReviveStarted;
-        _reviveAction.canceled += OnReviveCanceled;
     }
 
     private void UnsubscribeInputEvents( )
     {
-        // Guard — if CacheActions never ran (e.g. object destroyed before OnStartLocalPlayer),
-        // these will be null and would throw on unsubscribe
+
         if (_moveAction == null) return;
 
         _moveAction.performed -= OnMovePerformed;
@@ -130,13 +111,9 @@ public class PlayerInput : NetworkBehaviour
         if (!isLocalPlayer) return;
 
         _movement.SetMoveInput(_moveInput);
-
-        // Null-safe — PlayerRevive may not exist on the prefab yet
-        _revive?.SetReviveInput(_reviveHeld);
     }
 
     // ── Input handlers ────────────────────────────────────────────────────────
-    // Named methods so they can be unsubscribed precisely in OnDestroy.
 
     private void OnMovePerformed(InputAction.CallbackContext ctx)
         => _moveInput = ctx.ReadValue<Vector2>( );
@@ -155,8 +132,7 @@ public class PlayerInput : NetworkBehaviour
 
     private void OnAttackStarted(InputAction.CallbackContext ctx)
     {
-        // Re-cache if null — handles the post-respawn case where
-        // the component ref may have changed after ReplacePlayerForConnection
+
         if (_attack == null) _attack = GetComponent<PlayerAttack>( );
         _attack?.TryAttack( );
     }

@@ -1,8 +1,5 @@
 ﻿// PlayerRespawn.cs
-// Replaces the revive system entirely.
-// On death: player waits 5 seconds, then respawns at the surviving partner's position.
-// If both players are dead simultaneously: Game Over.
-// Attach to each player prefab root. Replaces PlayerRevive.cs — remove that script.
+
 
 using Mirror;
 using UnityEngine;

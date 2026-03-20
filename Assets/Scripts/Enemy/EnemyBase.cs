@@ -105,9 +105,6 @@ public abstract class EnemyBase : NetworkBehaviour
 
         foreach (var p in players)
         {
-            var revive = p.GetComponent<PlayerRevive>( );
-            if (revive != null && revive.isDown) continue;
-
             float dist = Vector2.Distance(transform.position, p.transform.position);
             if (dist < minDist)
             {

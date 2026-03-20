@@ -1,6 +1,5 @@
 ﻿// PlayerHealth.cs
-// Server-authoritative HP management.
-// Never modify HP on the client — always go through CmdTakeDamage / CmdHeal.
+
 
 using Mirror;
 using UnityEngine;
@@ -16,7 +15,7 @@ public class PlayerHealth : NetworkBehaviour
 
     // ── Runtime ───────────────────────────────────────────────────────────────
 
-    private bool _isInvincible; // Server-side only — not synced, not needed on clients
+    private bool _isInvincible; 
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -27,8 +26,7 @@ public class PlayerHealth : NetworkBehaviour
 
     // ── Taking damage ─────────────────────────────────────────────────────────
 
-    // Called by enemy contact, boss attacks, etc.
-    // Safe to call from server directly OR via Command from client.
+
     [Server]
     public void TakeDamage(float amount)
     {
@@ -50,12 +48,10 @@ public class PlayerHealth : NetworkBehaviour
         if (_currentHP <= 0f)
         {
             RiftLogger.Warn("HP hit 0 — triggering downed", this);
-            GetComponent<PlayerRevive>( )?.TriggerDowned( );
+            GetComponent<PlayerRespawn>( )?.TriggerDeath( );
         }
     }
 
-    // Client requests damage — server validates and applies.
-    // Use this when damage source is detected client-side (e.g. player walks into enemy).
     [Command]
     public void CmdTakeDamage(float amount)
     {

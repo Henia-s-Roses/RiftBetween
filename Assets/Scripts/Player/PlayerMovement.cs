@@ -1,9 +1,5 @@
 ﻿// PlayerMovement.cs
-// Handles horizontal movement and jumping.
-// Movement input comes from PlayerInput every frame via SetMoveInput().
-// Server-authoritative position via NetworkTransform.
-// Facing direction is synced via SyncVar — flips the entire GameObject
-// so all child objects (hitbox, projectile origin) flip automatically.
+
 
 using Mirror;
 using System.Collections;
@@ -28,8 +24,6 @@ public class PlayerMovement : NetworkBehaviour
     private PlayerAnimator _playerAnimator;
     // ── Synced state ──────────────────────────────────────────────────────────
 
-    // Flips the entire GameObject so hitbox and projectile origin follow automatically.
-    // SyncVar ensures all clients see the correct facing direction.
     [SyncVar(hook = nameof(OnFacingChanged))]
     private bool _facingRight = true;
 
@@ -121,25 +115,21 @@ public class PlayerMovement : NetworkBehaviour
 
     // ── Facing sync ───────────────────────────────────────────────────────────
 
-    // Local player tells the server which way they are facing.
-    // Server updates the SyncVar which replicates to all clients.
+
     [Command]
     private void CmdSetFacing(bool facingRight)
     {
         _facingRight = facingRight;
     }
 
-    // Fires on ALL clients (including host) whenever _facingRight changes.
-    // This is the single place where the flip is applied — never set
-    // localScale.x directly anywhere else.
+
     private void OnFacingChanged(bool oldVal, bool newVal)
     {
         ApplyFlip(newVal);
         _attack?.SetFacingDirection(newVal ? 1f : -1f);
     }
 
-    // Flips the entire GameObject by inverting localScale.x.
-    // All children (attack hitbox, projectile origin, sprite) flip with it.
+
     private void ApplyFlip(bool facingRight)
     {
         Vector3 scale = transform.localScale;
