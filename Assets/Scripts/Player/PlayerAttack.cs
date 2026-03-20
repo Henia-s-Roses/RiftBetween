@@ -32,6 +32,8 @@ public class PlayerAttack : NetworkBehaviour
     [Tooltip("Empty child Transform at the tip of the wand/hand — orb spawns here")]
     [SerializeField] private Transform projectileOrigin;
 
+    private PlayerAnimator _playerAnimator;
+
     // ── Runtime ───────────────────────────────────────────────────────────────
 
     private float _lastAttackTime = -999f;
@@ -42,6 +44,11 @@ public class PlayerAttack : NetworkBehaviour
     private float _facingDirection = 1f;
 
     // ── Setup ─────────────────────────────────────────────────────────────────
+
+    private void Awake( )
+    {
+        _playerAnimator = GetComponent<PlayerAnimator>( );
+    }
 
     // Called by RiftNetworkPlayer.OnCharacterConfirmed() after the game starts.
     public void SetAttackMode(AttackMode mode)
@@ -83,6 +90,8 @@ public class PlayerAttack : NetworkBehaviour
                 break;
         }
 
+        _playerAnimator.TriggerAttack( );
+
         RiftLogger.Log($"Attack triggered ({attackMode})", this);
     }
 
@@ -111,12 +120,15 @@ public class PlayerAttack : NetworkBehaviour
             if (hit.gameObject == gameObject) continue;
             if (hit.GetComponent<RiftNetworkPlayer>( ) != null) continue;
 
+            // Hit enemy
             var enemy = hit.GetComponent<EnemyBase>( );
             if (enemy != null)
             {
                 RiftLogger.Log($"Melee hit {hit.name} for {attackDamage}", this);
                 enemy.TakeDamage(attackDamage);
+                continue;
             }
+
         }
     }
 
@@ -126,8 +138,6 @@ public class PlayerAttack : NetworkBehaviour
     {
         if (orbPrefab == null || projectileOrigin == null) return;
 
-        // Derive direction from the GameObject's own scale on the server.
-        // Since scale is synced via NetworkTransform, this is reliable.
         float dir = transform.localScale.x > 0 ? 1f : -1f;
         Vector2 fireDir = new Vector2(dir, 0f);
 

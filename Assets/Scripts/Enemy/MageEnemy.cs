@@ -28,7 +28,6 @@ public class MageEnemy : EnemyBase
     private void FixedUpdate( )
     {
         if (!isServer) return;
-
         fireTimer -= Time.fixedDeltaTime;
 
         GameObject target = GetClosestPlayer( );

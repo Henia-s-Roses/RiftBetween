@@ -6,8 +6,8 @@
 public enum WorldState
 {
     WorldA = 0,  // world ni leo
-    WorldB = 1,  // world ni andr
-    Rift = 2   // combined world, corrupted, mashed
+    WorldB = 1  // world ni andr
+    //Rift = 2   // combined world, corrupted, mashed
 }
 
 public enum GamePhase

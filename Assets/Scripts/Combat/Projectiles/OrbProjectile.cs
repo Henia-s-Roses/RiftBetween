@@ -24,6 +24,7 @@ public class OrbProjectile : NetworkBehaviour
     private Rigidbody2D rb;
 
     // ── Setup ─────────────────────────────────────────────────────────────────
+    public bool FiredByEnemy => fromEnemy;
 
     private void Awake( )
     {

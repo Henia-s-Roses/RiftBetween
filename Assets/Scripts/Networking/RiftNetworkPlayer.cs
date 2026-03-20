@@ -52,10 +52,10 @@ public class RiftNetworkPlayer : NetworkBehaviour
 
 
         // set this player's character choice, which will sync to all clients 
-        selectedCharacter = choice; 
+        selectedCharacter = choice;
     }
 
-    
+
 
     // ── SyncVar hooks ─────────────────────────────────────────────────────────
 

@@ -1,12 +1,4 @@
 ﻿// PlayerRevive.cs
-// Manages the downed state and partner-revive mechanic.
-//
-// Flow:
-//   TriggerDowned()         — called by PlayerHealth when HP hits 0
-//   SetReviveInput(bool)    — called by PlayerInput each frame (I key held)
-//   CmdAccumulateRevive()   — sent to server each frame partner is in range + holding I
-//   CompleteRevive()        — server fires when 3s channel finishes
-//   RpcGameOver()           — server fires when 15s downed timer expires
 
 using Mirror;
 using UnityEngine;
@@ -31,11 +23,13 @@ public class PlayerRevive : NetworkBehaviour
     private bool _partnerInRange;
     private Coroutine _downedCoroutine;
 
-    // Cached references
     private PlayerMovement _movement;
     private PlayerAttack _attack;
     private PlayerHealth _health;
     private PlayerAnimator _animator;
+
+    // ── Public read — used by ReviveZone to avoid double-setting ─────────────
+    public bool IsPartnerInRange => _partnerInRange;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -52,90 +46,81 @@ public class PlayerRevive : NetworkBehaviour
     [Server]
     public void TriggerDowned( )
     {
-        if (isDown) return; // Already downed — don't double trigger
+        if (isDown) return;
 
         isDown = true;
         downedTimer = GameConfig.DOWNED_DURATION;
         reviveProgress = 0f;
 
         RiftLogger.System("Player entered DOWNED state", this);
-
         _downedCoroutine = StartCoroutine(DownedCountdown( ));
     }
 
-    // Counts down the 15s downed timer — game over on expiry
     [Server]
     private IEnumerator DownedCountdown( )
     {
         while (downedTimer > 0f)
         {
-            yield return new WaitForSeconds(0.1f); // Tick every 100ms — smooth enough for UI
+            yield return new WaitForSeconds(0.1f);
             downedTimer -= 0.1f;
         }
 
-        // Check if the other player is also downed
-        RiftLogger.Warn("Downed timer expired — triggering Game Over", this);
+        RiftLogger.Warn("Downed timer expired — Game Over", this);
         RpcGameOver("Downed timer expired.");
     }
 
-    // ── Revive input — called by PlayerInput each frame ───────────────────────
+    // ── Revive input — called by PlayerInput every frame ─────────────────────
 
-    // The local player calls this every frame to report their held state
     public void SetReviveInput(bool held)
     {
         if (!isLocalPlayer) return;
 
         _reviveInputHeld = held;
 
-        // Send to server every frame while held and partner is in range
         if (held && _partnerInRange)
             CmdAccumulateRevive(Time.deltaTime);
         else if (!held && _partnerInRange)
-            CmdResetReviveProgress( ); // Released input — reset progress
+            CmdResetReviveProgress( );
     }
 
     // ── Partner proximity — called by ReviveZone ──────────────────────────────
 
+    // Made public so ReviveZone (MonoBehaviour) can call it directly.
+    // ReviveZone is on the same GameObject so this is a safe local call.
     public void SetPartnerInRange(bool inRange)
     {
         _partnerInRange = inRange;
 
-        // Partner left range mid-channel — reset progress
         if (!inRange)
             CmdResetReviveProgress( );
     }
 
-    // ── Commands — client → server ────────────────────────────────────────────
+    // ── Commands ──────────────────────────────────────────────────────────────
 
     [Command]
     private void CmdAccumulateRevive(float delta)
     {
-        // Only accumulate if the target player (not this player) is downed
-        // Find the other player and check their isDown state
-        var otherPlayer = GetOtherPlayer( );
-        if (otherPlayer == null || !otherPlayer.isDown) return;
+        var other = GetOtherPlayer( );
+        if (other == null || !other.isDown) return;
 
-        otherPlayer.reviveProgress += delta;
-        RiftLogger.Log($"Revive progress: {otherPlayer.reviveProgress:F1}/{GameConfig.REVIVE_DURATION}s", this);
+        other.reviveProgress += delta;
+        RiftLogger.Log($"Revive: {other.reviveProgress:F1}/{GameConfig.REVIVE_DURATION}s", this);
 
-        if (otherPlayer.reviveProgress >= GameConfig.REVIVE_DURATION)
-            otherPlayer.CompleteRevive( );
+        if (other.reviveProgress >= GameConfig.REVIVE_DURATION)
+            other.CompleteRevive( );
     }
 
     [Command]
     private void CmdResetReviveProgress( )
     {
-        var otherPlayer = GetOtherPlayer( );
-        if (otherPlayer == null) return;
+        var other = GetOtherPlayer( );
+        if (other == null || other.reviveProgress <= 0f) return;
 
-        if (otherPlayer.reviveProgress > 0f)
-        {
-            RiftLogger.Log("Revive progress reset — partner left range or released input", this);
-            otherPlayer.reviveProgress = 0f;
-        }
+        RiftLogger.Log("Revive progress reset", this);
+        other.reviveProgress = 0f;
     }
 
-    // ── Server: complete the revive ───────────────────────────────────────────
+    // ── Revive completion ─────────────────────────────────────────────────────
 
     [Server]
     public void CompleteRevive( )
@@ -147,29 +132,23 @@ public class PlayerRevive : NetworkBehaviour
         reviveProgress = 0f;
         downedTimer = 0f;
 
-        // Restore 30% HP
-        float healAmount = GameConfig.PLAYER_MAX_HP * GameConfig.REVIVE_HP_PCT;
-        _health.Heal(healAmount);
+        _health?.Heal(GameConfig.PLAYER_MAX_HP * GameConfig.REVIVE_HP_PCT);
+        _health?.StartInvincibility(GameConfig.REVIVE_INVINCIBILITY);
 
-        // Grant invincibility frames
-        _health.StartInvincibility(GameConfig.REVIVE_INVINCIBILITY);
-
-        RiftLogger.System("Revive complete", this);
-
-        // Update score
         GameSession.SuccessfulRevives++;
         GameSession.AddScore(GameConfig.SCORE_REVIVE, ScoreCategory.Revive);
 
+        RiftLogger.System("Revive complete", this);
         RpcOnRevived( );
     }
 
-    // ── RPCs — server → all clients ──────────────────────────────────────────
+    // ── RPCs ──────────────────────────────────────────────────────────────────
 
     [ClientRpc]
     private void RpcOnRevived( )
     {
+        // isDown SyncVar hook fires SetDowned(false) on animator automatically
         RiftLogger.Log("RpcOnRevived received", this);
-        // Animator will pick this up via the isDown SyncVar hook going false
     }
 
     [ClientRpc]
@@ -178,49 +157,37 @@ public class PlayerRevive : NetworkBehaviour
         RiftLogger.System($"Game Over: {reason}", this);
         GameSession.CompletedNoWipe = false;
         GameSession.CurrentPhase = GamePhase.GameOver;
-
-        // GameOverManager handles the actual UI — stub for now
         // GameOverManager.Instance?.TriggerGameOver(reason);
     }
 
-    // ── SyncVar hooks — fire on all clients ──────────────────────────────────
+    // ── SyncVar hooks ─────────────────────────────────────────────────────────
 
     private void OnIsDownChanged(bool oldVal, bool newVal)
     {
-        RiftLogger.Log($"isDown changed → {newVal}", this);
-
-        // Lock/unlock movement and attack on all clients
+        RiftLogger.Log($"isDown → {newVal}", this);
         _movement?.SetMovementLocked(newVal);
         _attack?.SetAttackLocked(newVal);
         _animator?.SetDowned(newVal);
     }
 
     private void OnDownedTimerChanged(float oldVal, float newVal)
-    {
-        // UI reacts — ReviveTimerUI subscribes to this event
-        OnTimerUpdated?.Invoke(newVal);
-    }
+        => OnTimerUpdated?.Invoke(newVal);
 
     private void OnReviveProgressChanged(float oldVal, float newVal)
-    {
-        // UI reacts — ReviveProgressUI subscribes to this event
-        OnProgressUpdated?.Invoke(newVal, GameConfig.REVIVE_DURATION);
-    }
+        => OnProgressUpdated?.Invoke(newVal, GameConfig.REVIVE_DURATION);
 
-    // ── Events for UI ────────────────────────────────────────────────────────
+    // ── UI events ─────────────────────────────────────────────────────────────
 
-    public event System.Action<float> OnTimerUpdated;    // (remainingSeconds)
-    public event System.Action<float, float> OnProgressUpdated; // (progress, maxProgress)
+    public event System.Action<float> OnTimerUpdated;
+    public event System.Action<float, float> OnProgressUpdated;
 
-    // ── Helper ────────────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
-    // Finds the other RiftNetworkPlayer in the scene — works for 2-player games
     private PlayerRevive GetOtherPlayer( )
     {
-        foreach (var netPlayer in FindObjectsOfType<RiftNetworkPlayer>( ))
+        foreach (var p in FindObjectsOfType<PlayerRevive>( ))
         {
-            if (netPlayer.gameObject != gameObject)
-                return netPlayer.GetComponent<PlayerRevive>( );
+            if (p != this) return p;
         }
         return null;
     }

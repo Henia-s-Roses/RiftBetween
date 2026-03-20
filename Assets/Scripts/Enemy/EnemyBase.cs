@@ -1,83 +1,95 @@
 ﻿// EnemyBase.cs
-// Abstract base for all enemies. Handles health, world-based texture swapping,
-// SyncVar setup, and the shared death flow.
-// All enemies extend this — never place this directly on a GameObject.
 
 using Mirror;
 using UnityEngine;
 
 public abstract class EnemyBase : NetworkBehaviour
 {
-    // ── Inspector ─────────────────────────────────────────────────────────────
-
     [Header("Stats")]
     public float maxHP = 30f;
     public float contactDamage = 10f;
 
-    [Header("World Textures")]
+    [Header("World Skins — assign all 3 in Inspector")]
     public Sprite worldASkin;
     public Sprite worldBSkin;
     public Sprite riftSkin;
 
-    // ── Networked state ───────────────────────────────────────────────────────
-
     [SyncVar(hook = nameof(OnHPChanged))]
     public float currentHP;
-
-    // ── Component refs ────────────────────────────────────────────────────────
 
     protected SpriteRenderer spriteRenderer;
     protected Rigidbody2D rb;
     protected Animator animator;
-
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
+    protected Collider2D[] colliders;
+    protected EnemyAnimator enemyAnimator;
 
     protected virtual void Awake( )
     {
         spriteRenderer = GetComponent<SpriteRenderer>( );
         rb = GetComponent<Rigidbody2D>( );
         animator = GetComponent<Animator>( );
+        colliders = GetComponentsInChildren<Collider2D>( );
+        enemyAnimator = GetComponent<EnemyAnimator>( ); 
     }
 
     public override void OnStartServer( )
     {
-        // Validate maxHP — catches the case where a scene instance was placed
-        // but maxHP was never set in the Inspector (defaults to 0)
-        if (maxHP <= 0f)
-        {
-            RiftLogger.Warn($"{GetType( ).Name} has maxHP <= 0 — defaulting to 30. Set maxHP in Inspector.", this);
-            maxHP = 30f;
-        }
-
         currentHP = maxHP;
-        RiftLogger.Log($"Initialized — HP {currentHP}/{maxHP}", this);
+
+        // Server runs full physics — keep rigidbody normal
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.gravityScale = 1f;
+        }
     }
 
     public override void OnStartClient( )
     {
-        WorldManager.OnWorldChanged += HandleWorldChanged;
+        WorldManager.OnWorldChanged += ApplySkin;
 
         if (WorldManager.Instance != null)
-            HandleWorldChanged((WorldState)WorldManager.Instance.activeWorld);
+            ApplySkin((WorldState)WorldManager.Instance.activeWorld);
+
+        // Client never simulates physics for enemies.
+        // NetworkTransform drives position entirely on the client side.
+        // isKinematic=true + gravityScale=0 stops all client-side physics
+        // so it doesn't fight incoming position updates from NetworkTransform.
+        if (!isServer && rb != null)
+        {
+            rb.isKinematic = true;
+            rb.gravityScale = 0f;   // ← this was missing — kills floating
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
+        }
     }
 
     protected virtual void OnDestroy( )
     {
-        WorldManager.OnWorldChanged -= HandleWorldChanged;
+        WorldManager.OnWorldChanged -= ApplySkin;
     }
 
-    // ── Damage & death ────────────────────────────────────────────────────────
+    private void ApplySkin(WorldState world)
+    {
+        if (spriteRenderer == null) return;
+
+        spriteRenderer.sprite = world switch
+        {
+            WorldState.WorldA => worldASkin,
+            WorldState.WorldB => worldBSkin
+        };
+    }
+
+    private void OnHPChanged(float oldHP, float newHP) { }
 
     [Server]
     public virtual void TakeDamage(float amount)
     {
         if (currentHP <= 0) return;
-
         currentHP -= amount;
-        RiftLogger.Log($"Took {amount} dmg — HP {currentHP}/{maxHP}", this);
-
-        if (currentHP <= 0)
-            Die( );
+        RiftLogger.Log($"Took {amount} — HP {currentHP}/{maxHP}", this);
+        RpcTriggerHit( );
+        if (currentHP <= 0) Die( );
     }
 
     [Server]
@@ -89,46 +101,28 @@ public abstract class EnemyBase : NetworkBehaviour
     }
 
     [ClientRpc]
+    protected void RpcTriggerHit( )
+    {
+        enemyAnimator?.TriggerHit( );
+    }
+
+    // Update RpcOnDeath to also trigger death animation:
+    [ClientRpc]
     protected virtual void RpcOnDeath( )
     {
-        // Particle / SFX hook
+        enemyAnimator?.TriggerDeath( );
     }
-
-    // ── World skin swap ───────────────────────────────────────────────────────
-
-    private void HandleWorldChanged(WorldState newWorld)
-    {
-        if (spriteRenderer == null) return;
-
-        spriteRenderer.sprite = newWorld switch
-        {
-            WorldState.WorldA => worldASkin,
-            WorldState.WorldB => worldBSkin,
-            WorldState.Rift => riftSkin,
-            _ => worldASkin
-        };
-    }
-
-    private void OnHPChanged(float oldHP, float newHP)
-    {
-        // Hook for HP bar / hit flash — implement later
-    }
-
-    // ── Contact damage ────────────────────────────────────────────────────────
 
     protected virtual void OnTriggerEnter2D(Collider2D other)
     {
         if (!isServer) return;
-
         var health = other.GetComponent<PlayerHealth>( );
         if (health != null)
         {
             health.TakeDamage(contactDamage);
-            RiftLogger.Log($"Contact {contactDamage} dmg to player", this);
+            RiftLogger.Log($"Contact damage {contactDamage} dealt to player", this);
         }
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     protected GameObject GetClosestPlayer( )
     {

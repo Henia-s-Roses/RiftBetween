@@ -25,12 +25,25 @@ public class PlayerMovement : NetworkBehaviour
     [SerializeField] private LayerMask groundLayer;
     [SerializeField] private float groundCheckRadius = 0.15f;
 
+    private PlayerAnimator _playerAnimator;
     // ── Synced state ──────────────────────────────────────────────────────────
 
     // Flips the entire GameObject so hitbox and projectile origin follow automatically.
     // SyncVar ensures all clients see the correct facing direction.
     [SyncVar(hook = nameof(OnFacingChanged))]
     private bool _facingRight = true;
+
+    [SyncVar(hook = nameof(OnSyncIsMoving))]
+    private bool _syncIsMoving;
+
+    [SyncVar(hook = nameof(OnSyncIsSprinting))]
+    private bool _syncIsSprinting;
+
+    [SyncVar(hook = nameof(OnSyncIsGrounded))]
+    private bool _syncIsGrounded;
+
+    [SyncVar(hook = nameof(OnSyncVelocityY))]
+    private float _syncVelocityY;
 
     // ── Runtime ───────────────────────────────────────────────────────────────
 
@@ -40,7 +53,7 @@ public class PlayerMovement : NetworkBehaviour
     private Vector2 _moveInput;
     private bool _isGrounded;
     private bool _movementLocked; // Set true when player is downed
-    private bool _sprintHeld;
+    public bool _sprintHeld;
 
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -49,6 +62,7 @@ public class PlayerMovement : NetworkBehaviour
     {
         _rb = GetComponent<Rigidbody2D>( );
         _attack = GetComponent<PlayerAttack>( );
+        _playerAnimator = GetComponent<PlayerAnimator>( ); 
     }
 
     private void FixedUpdate( )
@@ -84,14 +98,25 @@ public class PlayerMovement : NetworkBehaviour
         float speed = _moveInput.x != 0f
             ? ( _sprintHeld ? sprintSpeed : moveSpeed )
             : 0f;
+
         _rb.linearVelocity = new Vector2(_moveInput.x * speed, _rb.linearVelocity.y);
 
-        // Only send a Command when direction actually changes — not every frame.
-        // CmdSetFacing updates the SyncVar which triggers OnFacingChanged on all clients.
-        if (_moveInput.x > 0f && !_facingRight)
-            CmdSetFacing(true);
-        else if (_moveInput.x < 0f && _facingRight)
-            CmdSetFacing(false);
+        // Facing direction
+        if (_moveInput.x > 0f && !_facingRight) CmdSetFacing(true);
+        else if (_moveInput.x < 0f && _facingRight) CmdSetFacing(false);
+
+        // Sync animation state — only send Commands when values change
+        bool moving = IsMoving;
+        bool sprinting = _sprintHeld;
+        bool grounded = _isGrounded;
+        float velY = _rb.linearVelocity.y;
+
+        if (moving != _syncIsMoving) CmdSetAnimBool(0, moving);
+        if (sprinting != _syncIsSprinting) CmdSetAnimBool(1, sprinting);
+        if (grounded != _syncIsGrounded) CmdSetAnimBool(2, grounded);
+
+        // VelocityY — only sync if changed meaningfully (avoid spam)
+        if (Mathf.Abs(velY - _syncVelocityY) > 0.1f) CmdSetAnimFloat(velY);
     }
 
     // ── Facing sync ───────────────────────────────────────────────────────────
@@ -183,6 +208,48 @@ public class PlayerMovement : NetworkBehaviour
         sprintSpeed /= multiplier;
         RiftLogger.Log("Speed buff expired", this);
     }
+
+
+
+    [Command]
+    private void CmdSetAnimBool(int id, bool val)
+    {
+        switch (id)
+        {
+            case 0: _syncIsMoving = val; break;
+            case 1: _syncIsSprinting = val; break;
+            case 2: _syncIsGrounded = val; break;
+        }
+    }
+
+    [Command]
+    private void CmdSetAnimFloat(float velY)
+    {
+        _syncVelocityY = velY;
+    }
+
+
+    private void OnSyncIsMoving(bool old, bool val)
+    {
+        if (!isLocalPlayer) _playerAnimator?.SetMoving(val);
+    }
+
+    private void OnSyncIsSprinting(bool old, bool val)
+    {
+        if (!isLocalPlayer) _playerAnimator?.SetSprinting(val);
+    }
+
+    private void OnSyncIsGrounded(bool old, bool val)
+    {
+        if (!isLocalPlayer) _playerAnimator?.SetGrounded(val);
+    }
+
+    private void OnSyncVelocityY(float old, float val)
+    {
+        if (!isLocalPlayer) _playerAnimator?.SetVelocityY(val);
+    }
+
+
 
     // ── Public reads ──────────────────────────────────────────────────────────
 

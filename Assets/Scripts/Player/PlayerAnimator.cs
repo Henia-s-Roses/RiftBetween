@@ -1,56 +1,54 @@
 ﻿// PlayerAnimator.cs
-// Drives the Animator Controller from live component state.
-// Pure MonoBehaviour — no networking. Reads siblings, writes to Animator.
-// Add animator parameters in Unity matching the names below exactly.
 
+using Mirror;
 using UnityEngine;
 
-[RequireComponent(typeof(Animator))]
-public class PlayerAnimator : MonoBehaviour
+// NetworkBehaviour instead of MonoBehaviour — gives us reliable isLocalPlayer
+public class PlayerAnimator : NetworkBehaviour
 {
-    // ── Animator parameter name constants ─────────────────────────────────────
-    // Must match exactly what you name the parameters in the Animator Controller
-
-    private static readonly int IsMoving = Animator.StringToHash("isMoving");
-    private static readonly int IsGrounded = Animator.StringToHash("isGrounded");
-    private static readonly int IsDowned = Animator.StringToHash("isDowned");
-    private static readonly int IsAttacking = Animator.StringToHash("isAttacking");
-    private static readonly int VelocityY = Animator.StringToHash("velocityY");
-
     // ── References ────────────────────────────────────────────────────────────
 
-    private Animator _animator;
+    [SerializeField] private Animator _animator;
     private PlayerMovement _movement;
-    private PlayerAttack _attack;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     private void Awake( )
     {
-        _animator = GetComponent<Animator>( );
         _movement = GetComponent<PlayerMovement>( );
-        _attack = GetComponent<PlayerAttack>( );
+
+        if (_animator == null)
+            _animator = GetComponent<Animator>( );
     }
 
     private void Update( )
     {
-        // Update animator every frame from live movement state
-        _animator.SetBool(IsMoving, _movement.IsMoving);
-        _animator.SetBool(IsGrounded, _movement.IsGrounded);
-        _animator.SetFloat(VelocityY, _movement.VerticalSpeed);
+        // isLocalPlayer is now correct — PlayerAnimator IS a NetworkBehaviour
+        // so Mirror sets isLocalPlayer properly on this component
+        if (!isLocalPlayer) return;
+        if (_movement == null) return;
+
+        if (Time.frameCount % 60 == 0)
+            RiftLogger.Log($"Animator update — isMoving:{_movement.IsMoving} isGrounded:{_movement.IsGrounded} velY:{_movement.VerticalSpeed:F1}", this);
+
+
+        _animator.SetBool("IsMoving", _movement.IsMoving);
+        _animator.SetBool("IsGrounded", _movement.IsGrounded);
+        _animator.SetFloat("VelocityY", _movement.VerticalSpeed);
+        _animator.SetBool("IsSprinting", _movement._sprintHeld);
     }
 
-    // ── Called externally ────────────────────────────────────────────────────
-    // These are called by other scripts rather than polled,
-    // because they're event-driven (not continuous state).
+    // ── Remote player setters — called by SyncVar hooks in PlayerMovement ─────
 
-    public void SetDowned(bool downed)
-    {
-        _animator.SetBool(IsDowned, downed);
-    }
+    public void SetMoving(bool val) => _animator.SetBool("IsMoving", val);
+    public void SetSprinting(bool val) => _animator.SetBool("IsSprinting", val);
+    public void SetGrounded(bool val) => _animator.SetBool("IsGrounded", val);
+    public void SetVelocityY(float val) => _animator.SetFloat("VelocityY", val);
 
-    public void SetAttacking(bool attacking)
-    {
-        _animator.SetBool(IsAttacking, attacking);
-    }
+    // ── Called by other scripts ───────────────────────────────────────────────
+
+    public void SetDowned(bool val) => _animator.SetBool("IsDowned", val);
+    public void SetDead(bool val) => _animator.SetBool("IsDead", val);
+    public void SetKnockback(bool val) => _animator.SetBool("IsKnockedBack", val);
+    public void TriggerAttack( ) => _animator.SetTrigger("AttackTrigger");
 }

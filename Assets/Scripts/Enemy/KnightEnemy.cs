@@ -27,7 +27,6 @@ public class KnightEnemy : EnemyBase
     private void FixedUpdate( )
     {
         if (!isServer) return;
-
         attackTimer -= Time.fixedDeltaTime;
 
         GameObject target = GetClosestPlayer( );
