@@ -14,14 +14,14 @@ public class MoveLeftRight : MonoBehaviour
     }
     public void MoveRight()
     {
-        rb.velocity = Vector2.right * moveSpeed;
+        rb.linearVelocity = Vector2.right * moveSpeed;
     }
     public void MoveLeft()
     {
-        rb.velocity = Vector2.left * moveSpeed;
+        rb.linearVelocity = Vector2.left * moveSpeed;
     }
     public void StopMoving()
     {
-        rb.velocity = Vector2.zero;
+        rb.linearVelocity = Vector2.zero;
     }
 }
