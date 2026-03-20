@@ -3,6 +3,7 @@
 // pang "initialize" ng player to the lobby, char is replaced upon slection
 
 using Mirror;
+using System.Collections;
 using UnityEngine;
 
 public enum CharacterChoice { None = 0, PixelKnight = 1, InkWanderer = 2 }
@@ -60,14 +61,20 @@ public class RiftNetworkPlayer : NetworkBehaviour
 
     private void OnPlayerIndexChanged(int oldVal, int newVal)
     {
-        LobbyUI.Instance.RefreshLobbyState( );
+        StartCoroutine(RefreshUINextFrame( ));
     }
 
     // when a player selects a character, update the lobby UI for all players to see the new selection
     private void OnCharacterChanged(CharacterChoice oldVal, CharacterChoice newVal)
     {
         // refresh lobby to show change
-        LobbyUI.Instance.RefreshLobbyState( );
+        StartCoroutine(RefreshUINextFrame( ));
+    }
+
+    private IEnumerator RefreshUINextFrame( )
+    {
+        yield return null; // Wait one frame
+        LobbyUI.Instance?.RefreshLobbyState( );
     }
 
 
@@ -89,5 +96,21 @@ public class RiftNetworkPlayer : NetworkBehaviour
                 homeWorld = WorldState.WorldB;
                 break;
         }
+        RpcConfigureAttackMode(selectedCharacter);
+
+    }
+
+
+    [ClientRpc]
+    private void RpcConfigureAttackMode(CharacterChoice character)
+    {
+        var attack = GetComponent<PlayerAttack>( );
+        if (attack == null) return;
+
+        AttackMode mode = character == CharacterChoice.InkWanderer
+            ? AttackMode.Projectile
+            : AttackMode.Melee;
+
+        attack.SetAttackMode(mode);
     }
 }

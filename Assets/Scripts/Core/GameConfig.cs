@@ -34,7 +34,7 @@ public static class GameConfig
 
     // ── Items ─────────────────────────────────────────────────────────────────
     public const float ITEM_PICKUP_RANGE = 0.8f;
-    //public const float PASSIVE_DURATION = 25f;  
+    public const float PASSIVE_DURATION = 25f;
 
     // ── Score ─────────────────────────────────────────────────────────────────
     public const int SCORE_ENEMY_KILL = 10;         // score per basic enemy killed

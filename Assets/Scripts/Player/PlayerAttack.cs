@@ -1,61 +1,105 @@
-// PlayerAttack.cs
-// Handles the basic attack hitbox and damage application.
-// TryAttack() is called by PlayerInput on button press.
-// Damage is applied server-side via Command.
+﻿// PlayerAttack.cs
+
+
 
 using Mirror;
+using System.Collections;
 using UnityEngine;
+
+public enum AttackMode { Melee, Projectile }
 
 public class PlayerAttack : NetworkBehaviour
 {
-    // ?? Inspector ?????????????????????????????????????????????????????????????
+    // ── Inspector ─────────────────────────────────────────────────────────────
 
     [Header("Attack Settings")]
     [SerializeField] private float attackDamage = 20f;
-    [SerializeField] private float attackCooldown = 0.4f;  // Seconds between attacks
-    [SerializeField] private float hitboxDuration = 0.15f; // How long hitbox stays active
+    [SerializeField] private float attackCooldown = 0.4f;
+    [SerializeField] private float hitboxDuration = 0.15f;
 
-    [Header("References")]
-    [Tooltip("Child object with a Collider2D set as Trigger � this is the swing hitbox")]
+    [Header("Mode")]
+    [Tooltip("Set automatically from character choice — Melee for Knight, Projectile for Wanderer")]
+    [SerializeField] private AttackMode attackMode = AttackMode.Melee;
+
+    [Header("Melee References")]
+    [Tooltip("Child object with a Collider2D (Trigger) — the swing hitbox. Knight only.")]
     [SerializeField] private GameObject attackHitbox;
 
-    // ?? Runtime ???????????????????????????????????????????????????????????????
+    [Header("Projectile References")]
+    [Tooltip("OrbProjectile prefab — Wanderer only")]
+    [SerializeField] private GameObject orbPrefab;
+
+    [Tooltip("Empty child Transform at the tip of the wand/hand — orb spawns here")]
+    [SerializeField] private Transform projectileOrigin;
+
+    // ── Runtime ───────────────────────────────────────────────────────────────
 
     private float _lastAttackTime = -999f;
-    private bool _attackLocked;  // True when player is downed
+    private bool _attackLocked;
 
-    // ?? Called by PlayerInput ?????????????????????????????????????????????????
+    // Cached facing direction — updated by PlayerMovement each frame.
+    // 1 = facing right, -1 = facing left.
+    private float _facingDirection = 1f;
+
+    // ── Setup ─────────────────────────────────────────────────────────────────
+
+    // Called by RiftNetworkPlayer.OnCharacterConfirmed() after the game starts.
+    public void SetAttackMode(AttackMode mode)
+    {
+        attackMode = mode;
+        RiftLogger.Log($"Attack mode set to {mode}", this);
+
+        // Hide the melee hitbox GameObject entirely if this player is a Wanderer
+        if (attackHitbox != null)
+            attackHitbox.SetActive(mode == AttackMode.Melee);
+    }
+
+    // Called by PlayerMovement whenever the player flips direction.
+    public void SetFacingDirection(float dir)
+    {
+        _facingDirection = dir;
+    }
+
+    // ── Called by PlayerInput ─────────────────────────────────────────────────
 
     public void TryAttack( )
     {
         if (!isLocalPlayer) return;
         if (_attackLocked) return;
-        if (Time.time < _lastAttackTime + attackCooldown) return; // Still on cooldown
+        if (Time.time < _lastAttackTime + attackCooldown) return;
 
         _lastAttackTime = Time.time;
-        RiftLogger.Log("Attack triggered", this);
 
-        // Activate the hitbox locally for visual/feel, then tell server to validate hits
-        StartCoroutine(ActivateHitbox( ));
-        CmdNotifyAttack( );
+        switch (attackMode)
+        {
+            case AttackMode.Melee:
+                StartCoroutine(ActivateHitbox( ));
+                CmdMeleeAttack( );
+                break;
+
+            case AttackMode.Projectile:
+                // Play a local visual cue here if needed (e.g. wand flash)
+                CmdFireProjectile(_facingDirection);
+                break;
+        }
+
+        RiftLogger.Log($"Attack triggered ({attackMode})", this);
     }
 
-    // Enables the hitbox collider briefly, then disables it
-    private System.Collections.IEnumerator ActivateHitbox( )
+    // ── Melee path ────────────────────────────────────────────────────────────
+
+    private IEnumerator ActivateHitbox( )
     {
         attackHitbox.SetActive(true);
         yield return new WaitForSeconds(hitboxDuration);
         attackHitbox.SetActive(false);
     }
 
-    // ?? Server-side hit detection ?????????????????????????????????????????????
-
-    // Tells the server an attack happened � server re-checks hitbox overlap
-    // to prevent clients from faking hits
     [Command]
-    private void CmdNotifyAttack( )
+    private void CmdMeleeAttack( )
     {
-        // Server checks for any enemies inside the attack range
+        if (attackHitbox == null) return;
+
         Collider2D[] hits = Physics2D.OverlapBoxAll(
             attackHitbox.transform.position,
             attackHitbox.GetComponent<Collider2D>( ).bounds.size,
@@ -64,21 +108,50 @@ public class PlayerAttack : NetworkBehaviour
 
         foreach (var hit in hits)
         {
-            // Don't hit yourself or other players
             if (hit.gameObject == gameObject) continue;
             if (hit.GetComponent<RiftNetworkPlayer>( ) != null) continue;
 
-            // Apply damage to enemies
             var enemy = hit.GetComponent<EnemyBase>( );
             if (enemy != null)
             {
-                RiftLogger.Log($"Hit enemy: {hit.name} for {attackDamage} dmg", this);
+                RiftLogger.Log($"Melee hit {hit.name} for {attackDamage}", this);
                 enemy.TakeDamage(attackDamage);
             }
         }
     }
 
-    // ?? Called by PlayerRevive ????????????????????????????????????????????????
+    // ── Projectile dir ───────────────────────────────────────────────────────
+    [Command]
+    private void CmdFireProjectile(float facingDir)
+    {
+        if (orbPrefab == null || projectileOrigin == null) return;
+
+        // Derive direction from the GameObject's own scale on the server.
+        // Since scale is synced via NetworkTransform, this is reliable.
+        float dir = transform.localScale.x > 0 ? 1f : -1f;
+        Vector2 fireDir = new Vector2(dir, 0f);
+
+        GameObject orb = Instantiate(orbPrefab, projectileOrigin.position, Quaternion.identity);
+        orb.GetComponent<OrbProjectile>( )?.Initialize(fireDir, attackDamage, isEnemy: false);
+        NetworkServer.Spawn(orb);
+
+    }
+
+    // ── Utilities ─────────────────────────────────────────────────────────────
+
+    public void ApplyDamageBuff(float multiplier, float duration)
+    {
+        StartCoroutine(DamageBuffCoroutine(multiplier, duration));
+    }
+
+    private IEnumerator DamageBuffCoroutine(float multiplier, float duration)
+    {
+        attackDamage *= multiplier;
+        RiftLogger.Log($"Damage buff active — {multiplier}x for {duration}s", this);
+        yield return new WaitForSeconds(duration);
+        attackDamage /= multiplier;
+        RiftLogger.Log("Damage buff expired", this);
+    }
 
     public void SetAttackLocked(bool locked)
     {

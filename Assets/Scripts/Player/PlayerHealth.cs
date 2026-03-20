@@ -11,6 +11,8 @@ public class PlayerHealth : NetworkBehaviour
 
     [SyncVar(hook = nameof(OnHPChanged))]
     private float _currentHP;
+    public delegate void DamageModifier(ref float damage);
+    public event DamageModifier OnBeforeDamage;
 
     // ── Runtime ───────────────────────────────────────────────────────────────
 
@@ -35,6 +37,12 @@ public class PlayerHealth : NetworkBehaviour
             RiftLogger.Log($"Damage blocked — invincible ({amount} ignored)", this);
             return;
         }
+
+        // Give shields or other damage modifiers a chance to absorb/reduce the hit
+        OnBeforeDamage?.Invoke(ref amount);
+
+        // If a shield fully absorbed the hit, amount is now 0
+        if (amount <= 0) return;
 
         _currentHP = Mathf.Max(0f, _currentHP - amount);
         RiftLogger.Log($"Took {amount} dmg — HP {_currentHP}/{GameConfig.PLAYER_MAX_HP}", this);
@@ -96,7 +104,7 @@ public class PlayerHealth : NetworkBehaviour
         // UI update — PlayerHealthUI subscribes to this via an event
         OnHealthChanged?.Invoke(newHP, GameConfig.PLAYER_MAX_HP);
     }
-
+        
     // ── Events ────────────────────────────────────────────────────────────────
 
     // UI scripts subscribe to this instead of polling HP every frame

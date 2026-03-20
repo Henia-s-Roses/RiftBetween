@@ -9,22 +9,30 @@ using Mirror;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-[RequireComponent(typeof(PlayerMovement))]
-[RequireComponent(typeof(PlayerAttack))]
-[RequireComponent(typeof(PlayerRevive))]
 public class PlayerInput : NetworkBehaviour
 {
     // ── Sibling component references ──────────────────────────────────────────
+
     private PlayerMovement _movement;
     private PlayerAttack _attack;
-    private PlayerRevive _revive;
+    private PlayerRevive _revive;   // Optional — may not be on prefab during early testing
 
-    // ── Input action asset ────────────────────────────────────────────────────
-    private RiftInputActions _actions;
+    // ── Cached input state ────────────────────────────────────────────────────
 
-    // Cached input values read each FixedUpdate
     private Vector2 _moveInput;
     private bool _reviveHeld;
+
+    // ── Cached action references ──────────────────────────────────────────────
+    // Stored so we can unsubscribe the exact same delegate in OnDestroy.
+    // Lambda subscriptions can't be unsubscribed — named methods are required.
+
+    private InputAction _moveAction;
+    private InputAction _jumpAction;
+    private InputAction _sprintAction;
+    private InputAction _attackAction;
+    private InputAction _ability1Action;
+    private InputAction _ability2Action;
+    private InputAction _reviveAction;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -32,98 +40,148 @@ public class PlayerInput : NetworkBehaviour
     {
         _movement = GetComponent<PlayerMovement>( );
         _attack = GetComponent<PlayerAttack>( );
-        _revive = GetComponent<PlayerRevive>( );
-
-        _actions = new RiftInputActions( );
+        _revive = GetComponent<PlayerRevive>( );  // Null-safe — not required to exist yet
     }
 
     public override void OnStartLocalPlayer( )
     {
-        // Only enable input on the machine that owns this player
-        _actions.Player.Enable( );
+        CacheActions( );
         SubscribeInputEvents( );
         RiftLogger.Log("Input enabled for local player", this);
     }
 
     private void OnDestroy( )
     {
-        // Always clean up input subscriptions to avoid memory leaks
-        if (_actions != null)
-        {
-            UnsubscribeInputEvents( );
-            _actions.Player.Disable( );
-            _actions.Dispose( );
-        }
+        // CRITICAL: always unsubscribe on destroy.
+        // The Input System holds references to these delegates — if we don't
+        // unsubscribe, callbacks fire on the destroyed object next input frame.
+        UnsubscribeInputEvents( );
+        RiftLogger.Log("Input unsubscribed on destroy", this);
+    }
+
+    // ── Action caching ────────────────────────────────────────────────────────
+
+    private void CacheActions( )
+    {
+        // Cache each action by name once — avoids repeated FindAction calls per frame
+        _moveAction = InputSystem.actions.FindAction("Move");
+        _jumpAction = InputSystem.actions.FindAction("Jump");
+        _sprintAction = InputSystem.actions.FindAction("Sprint");
+        _attackAction = InputSystem.actions.FindAction("Attack");
+        _ability1Action = InputSystem.actions.FindAction("Ability1");
+        _ability2Action = InputSystem.actions.FindAction("Ability2");
+        _reviveAction = InputSystem.actions.FindAction("Revive");
     }
 
     // ── Input subscriptions ───────────────────────────────────────────────────
-    // Buttons use started/canceled for precise press/release detection.
-    // Move uses performed/canceled for held-axis reading.
 
     private void SubscribeInputEvents( )
     {
-        // Move — continuous axis, cached and passed to movement each FixedUpdate
-        _actions.Player.Move.performed += ctx => _moveInput = ctx.ReadValue<Vector2>( );
-        _actions.Player.Move.canceled += ctx => _moveInput = Vector2.zero;
+        // Move — continuous axis
+        _moveAction.performed += OnMovePerformed;
+        _moveAction.canceled += OnMoveCanceled;
 
-        // Jump — fired on press only
-        _actions.Player.Jump.started += ctx => _movement.Jump( );
+        // Jump — press only
+        _jumpAction.started += OnJumpStarted;
 
-        // Attack — fired on press
-        _actions.Player.Attack.started += ctx => _attack.TryAttack( );
+        // Sprint — held
+        _sprintAction.started += OnSprintStarted;
+        _sprintAction.canceled += OnSprintCanceled;
 
-        // Abilities — input wired, implementations come later
-        _actions.Player.Ability1.started += ctx => OnAbility1Pressed( );
-        _actions.Player.Ability2.started += ctx => OnAbility2Pressed( );
+        // Attack — press only
+        _attackAction.started += OnAttackStarted;
 
-        // Revive — held input, tracked as bool each frame
-        _actions.Player.Revive.started += ctx => _reviveHeld = true;
-        _actions.Player.Revive.canceled += ctx => _reviveHeld = false;
+        // Abilities — stubs until PlayerAbilities is implemented
+        _ability1Action.started += OnAbility1Started;
+        _ability2Action.started += OnAbility2Started;
+
+        // Revive — held
+        _reviveAction.started += OnReviveStarted;
+        _reviveAction.canceled += OnReviveCanceled;
     }
 
     private void UnsubscribeInputEvents( )
     {
-        _actions.Player.Move.performed -= ctx => _moveInput = ctx.ReadValue<Vector2>( );
-        _actions.Player.Move.canceled -= ctx => _moveInput = Vector2.zero;
-        _actions.Player.Jump.started -= ctx => _movement.Jump( );
-        _actions.Player.Attack.started -= ctx => _attack.TryAttack( );
-        _actions.Player.Ability1.started -= ctx => OnAbility1Pressed( );
-        _actions.Player.Ability2.started -= ctx => OnAbility2Pressed( );
-        _actions.Player.Revive.started -= ctx => _reviveHeld = true;
-        _actions.Player.Revive.canceled -= ctx => _reviveHeld = false;
+        // Guard — if CacheActions never ran (e.g. object destroyed before OnStartLocalPlayer),
+        // these will be null and would throw on unsubscribe
+        if (_moveAction == null) return;
+
+        _moveAction.performed -= OnMovePerformed;
+        _moveAction.canceled -= OnMoveCanceled;
+
+        _jumpAction.started -= OnJumpStarted;
+
+        _sprintAction.started -= OnSprintStarted;
+        _sprintAction.canceled -= OnSprintCanceled;
+
+        _attackAction.started -= OnAttackStarted;
+
+        _ability1Action.started -= OnAbility1Started;
+        _ability2Action.started -= OnAbility2Started;
+
+        _reviveAction.started -= OnReviveStarted;
+        _reviveAction.canceled -= OnReviveCanceled;
     }
 
     // ── Per-frame dispatch ────────────────────────────────────────────────────
 
     private void Update( )
     {
-        // Only the local player processes input
         if (!isLocalPlayer) return;
 
-        // Pass move axis to movement every frame
         _movement.SetMoveInput(_moveInput);
 
-        // Revive is a held input — notify revive component each frame
-        _revive.SetReviveInput(_reviveHeld);
+        // Null-safe — PlayerRevive may not exist on the prefab yet
+        _revive?.SetReviveInput(_reviveHeld);
     }
 
-    // ── Ability stubs ─────────────────────────────────────────────────────────
-    // Wired to input but empty until PlayerAbilities is implemented.
+    // ── Input handlers ────────────────────────────────────────────────────────
+    // Named methods so they can be unsubscribed precisely in OnDestroy.
 
-    private void OnAbility1Pressed( )
+    private void OnMovePerformed(InputAction.CallbackContext ctx)
+        => _moveInput = ctx.ReadValue<Vector2>( );
+
+    private void OnMoveCanceled(InputAction.CallbackContext ctx)
+        => _moveInput = Vector2.zero;
+
+    private void OnJumpStarted(InputAction.CallbackContext ctx)
+        => _movement?.Jump( );
+
+    private void OnSprintStarted(InputAction.CallbackContext ctx)
+        => _movement?.SetSprint(true);
+
+    private void OnSprintCanceled(InputAction.CallbackContext ctx)
+        => _movement?.SetSprint(false);
+
+    private void OnAttackStarted(InputAction.CallbackContext ctx)
     {
-        RiftLogger.Log("Ability 1 input received (not yet implemented)", this);
+        // Re-cache if null — handles the post-respawn case where
+        // the component ref may have changed after ReplacePlayerForConnection
+        if (_attack == null) _attack = GetComponent<PlayerAttack>( );
+        _attack?.TryAttack( );
+    }
+
+    private void OnReviveStarted(InputAction.CallbackContext ctx)
+        => _reviveHeld = true;
+
+    private void OnReviveCanceled(InputAction.CallbackContext ctx)
+        => _reviveHeld = false;
+
+    // ── Ability stubs ─────────────────────────────────────────────────────────
+
+    private void OnAbility1Started(InputAction.CallbackContext ctx)
+    {
+        RiftLogger.Log("Ability 1 pressed (not yet implemented)", this);
         // GetComponent<PlayerAbilities>()?.TryAbility1();
     }
 
-    private void OnAbility2Pressed( )
+    private void OnAbility2Started(InputAction.CallbackContext ctx)
     {
-        RiftLogger.Log("Ability 2 input received (not yet implemented)", this);
+        RiftLogger.Log("Ability 2 pressed (not yet implemented)", this);
         // GetComponent<PlayerAbilities>()?.TryAbility2();
     }
 
-    // ── Public access ─────────────────────────────────────────────────────────
-    // Other scripts can check if input is coming in — useful for animator
+    // ── Public reads ──────────────────────────────────────────────────────────
 
     public Vector2 MoveInput => isLocalPlayer ? _moveInput : Vector2.zero;
     public bool ReviveHeld => isLocalPlayer && _reviveHeld;

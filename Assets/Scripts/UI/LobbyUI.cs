@@ -65,7 +65,7 @@ public class LobbyUI : MonoBehaviour
     // tracks discovered lobbies from network discovery
     private Dictionary<long, ServerResponse> discoveredServers = new Dictionary<long, ServerResponse>( );
 
-
+    private bool _uiReady = false;
 
     // initialize singleton instance
     private void Awake( ) => Instance = this;
@@ -104,6 +104,15 @@ public class LobbyUI : MonoBehaviour
 
         startButton.gameObject.SetActive(false);
         errorLabel.text = "";
+
+        _uiReady = true;
+
+    }
+
+    private void OnDestroy( )
+    {
+        _uiReady = false;
+        Instance = null;
     }
 
     // switch to main menu screen

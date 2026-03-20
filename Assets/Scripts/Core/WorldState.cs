@@ -14,7 +14,7 @@ public enum GamePhase
 {
     Menu,        // main menu / lobby
     Stage1,      // "The Bleeding World"
-    //Transition,  // Cinematic between stages
+    Transition,  // Cinematic between stages
     Stage2,      // "The Rift"
     GameOver,    // olats
     Win          // final boss defeated
