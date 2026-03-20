@@ -476,7 +476,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8653719598885068355, guid: ac00584fcef3fee429c0e739b3cee9b4, type: 3}
       propertyPath: m_Name
-      value: Leochar
+      value: Leo
       objectReference: {fileID: 0}
     - target: {fileID: -7552582706839291426, guid: ac00584fcef3fee429c0e739b3cee9b4, type: 3}
       propertyPath: m_LocalScale.x
