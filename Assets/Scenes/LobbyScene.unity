@@ -3600,8 +3600,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AudioManager
   musicVolume: 0.6
   sfxVolume: 1
-  musicMainMenu: {fileID: 0}
-  musicWorldA: {fileID: 0}
+  musicMainMenu: {fileID: 8300000, guid: e95d37ebbc5494d4099c4718b0551061, type: 3}
+  musicWorldA: {fileID: 8300000, guid: 54f4c1a3febe44e4a943d45d1d19bb20, type: 3}
   musicWorldB: {fileID: 0}
   musicStage2: {fileID: 0}
   musicBoss: {fileID: 0}
@@ -3627,9 +3627,9 @@ MonoBehaviour:
   sfxShieldActivate: {fileID: 0}
   sfxShieldBreak: {fileID: 0}
   sfxRiftShardActivate: {fileID: 0}
-  sfxButtonClick: {fileID: 0}
-  sfxCharacterSelect: {fileID: 0}
-  sfxGameStart: {fileID: 0}
+  sfxButtonClick: {fileID: 8300000, guid: ae46e87a1569d1b45bad01b7cc1de3d3, type: 3}
+  sfxCharacterSelect: {fileID: 8300000, guid: 563884892133af446bdb373e00a7a764, type: 3}
+  sfxGameStart: {fileID: 8300000, guid: 616cf7f5cffb52e4caa0df9070ee4067, type: 3}
 --- !u!4 &2011535096
 Transform:
   m_ObjectHideFlags: 0

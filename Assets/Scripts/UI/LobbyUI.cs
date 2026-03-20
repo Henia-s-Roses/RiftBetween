@@ -118,6 +118,7 @@ public class LobbyUI : MonoBehaviour
     // switch to main menu screen
     private void ShowMainMenu( )
     {
+        AudioManager.Instance.PlayMusicMainMenu( );
         mainMenuScreen.SetActive(true);
         lobbyScreen.SetActive(false);
         discoveredServers.Clear( );
@@ -250,7 +251,10 @@ public class LobbyUI : MonoBehaviour
     private void OnCreateLobby( )
     {
         RiftNetworkManager.singleton.CreateLobby( );
+        AudioManager.Instance.PlayButtonClick( );
         ShowLobbyRoom( );
+        AudioManager.Instance.PlayButtonClick( );
+
         startButton.gameObject.SetActive(true);
         startButton.interactable = false;
     }
@@ -259,6 +263,8 @@ public class LobbyUI : MonoBehaviour
     private void OnRefresh( )
     {
         discoveredServers.Clear( );
+        AudioManager.Instance.PlayButtonClick( );
+
         ClearLobbyList( );
         FindObjectOfType<RiftNetworkDiscovery>( ).StartDiscovery( );
     }
@@ -271,6 +277,8 @@ public class LobbyUI : MonoBehaviour
     private void OnLeaveLobby( )
     {
         RiftNetworkManager.singleton.LeaveLobby( );
+        AudioManager.Instance.PlayButtonClick( );
+
         ShowMainMenu( );
     }
 
