@@ -16,7 +16,7 @@ public class RiftNetworkManager : NetworkManager
     public GameObject playerPrefabB;    // DREI CHARACTER
 
     [Header("Stage Scene Names")]
-    public string stage1Scene = "TestScene";    // should be "Stage1" for simplicity
+    public string stage1Scene = "Stage1";    // should be "Stage1" for simplicity
                                                 // replace "GameScene" after tesiting
     public string stage2Scene = "Stage2";       // "Stage2"
     public string lobbyScene = "LobbyScene";

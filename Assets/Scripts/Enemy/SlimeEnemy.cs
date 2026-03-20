@@ -63,7 +63,7 @@ public class RiftSlime : EnemyBase
             health.TakeDamage(attackDamage);
             _attackTimer = attackRate;
 
-            RpcTriggerAttack( ); // sync attack animation
+            RpcTriggerAttack( ); 
         }
     }
 
@@ -82,7 +82,6 @@ public class RiftSlime : EnemyBase
     [Server]
     protected override void Die( )
     {
-        // No more splitting — just die cleanly
         RpcOnDeath( );
         NetworkServer.Destroy(gameObject);
     }

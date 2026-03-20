@@ -1,89 +1,87 @@
 // KnightEnemy.cs
-// Melee enemy. Stands idle until a player enters detection range,
-// then walks toward them and deals contact damage on overlap.
 
 using Mirror;
 using UnityEngine;
 
 public class KnightEnemy : EnemyBase
 {
-    // ?? Inspector ?????????????????????????????????????????????????????????????
-
     [Header("Knight Settings")]
-    public float detectionRange = 5f;    // Distance at which the knight notices a player
-    public float moveSpeed = 2.5f;
-    public float attackRate = 1f;    // Seconds between contact damage ticks
-    public float attackDamage = 15f;   // Overrides base contactDamage for timed hits
+    public float moveSpeed = 2f;    // Slower than slime
+    public float attackRate = 1.2f;  // Hits less frequently
+    public float attackDamage = 20f;   // But hits much harder
+    public float detectionRange = 6f;
 
-    // ?? State ?????????????????????????????????????????????????????????????????
+    private float _attackTimer;
 
-    private enum KnightState { Idle, Chasing }
-    private KnightState state = KnightState.Idle;
-    private float attackTimer = 0f;
-
-    // ?? Server-side AI loop ???????????????????????????????????????????????????
-
-    // AI only runs on the server � position is synced via NetworkTransform
     private void FixedUpdate( )
     {
         if (!isServer) return;
-        attackTimer -= Time.fixedDeltaTime;
+
+        _attackTimer -= Time.fixedDeltaTime;
 
         GameObject target = GetClosestPlayer( );
 
         if (target == null)
         {
-            state = KnightState.Idle;
+            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            RpcSetMoving(false);
             return;
         }
 
         float dist = Vector2.Distance(transform.position, target.transform.position);
 
-        if (dist <= detectionRange)
+        if (dist > detectionRange)
         {
-            state = KnightState.Chasing;
-            ChasePlayer(target);
-        } else
-        {
-            state = KnightState.Idle;
+            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            RpcSetMoving(false);
+            return;
+        }
 
-            // Slow deceleration when returning to idle
-            rb.linearVelocity = new Vector2(
-                Mathf.MoveTowards(rb.linearVelocity.x, 0f, moveSpeed),
-                rb.linearVelocity.y
-            );
+        Vector2 dir = ( target.transform.position - transform.position ).normalized;
+        rb.linearVelocity = new Vector2(dir.x * moveSpeed, rb.linearVelocity.y);
+        RpcSetMoving(true);
+
+        if (dir.x != 0f)
+        {
+            Vector3 scale = transform.localScale;
+            scale.x = dir.x > 0 ? Mathf.Abs(scale.x) : -Mathf.Abs(scale.x);
+            transform.localScale = scale;
         }
     }
 
-    private void ChasePlayer(GameObject target)
-    {
-        Vector2 dir = ( target.transform.position - transform.position ).normalized;
-        rb.linearVelocity = new Vector2(dir.x * moveSpeed, rb.linearVelocity.y);
-
-        // Flip sprite to face movement direction
-        if (spriteRenderer != null && dir.x != 0)
-            spriteRenderer.flipX = dir.x < 0;
-    }
-
-    // ?? Contact damage (timed, not per-frame) ?????????????????????????????????
-
-    // Override base contact to use a cooldown timer instead of firing every frame
-    protected override void OnTriggerEnter2D(Collider2D other)
-    {
-        // Intentionally left empty � using OnTriggerStay2D with a timer instead
-    }
+    // Override base contact — use timed stay instead of enter
+    protected override void OnTriggerEnter2D(Collider2D other) { }
 
     private void OnTriggerStay2D(Collider2D other)
     {
         if (!isServer) return;
-        if (attackTimer > 0f) return;
+        if (_attackTimer > 0f) return;
 
         var health = other.GetComponent<PlayerHealth>( );
         if (health != null)
         {
             health.TakeDamage(attackDamage);
-            attackTimer = attackRate;
-            RiftLogger.Log($"Knight hit player for {attackDamage}", this);
+            _attackTimer = attackRate;
+            RpcTriggerAttack( );
         }
+    }
+
+    [ClientRpc]
+    private void RpcTriggerAttack( )
+    {
+        enemyAnimator?.TriggerAttack( );
+    }
+
+    [ClientRpc]
+    private void RpcSetMoving(bool moving)
+    {
+        enemyAnimator?.SetMoving(moving);
+    }
+
+    [Server]
+    protected override void Die( )
+    {
+        RpcOnDeath( );
+        NetworkServer.Destroy(gameObject);
     }
 }

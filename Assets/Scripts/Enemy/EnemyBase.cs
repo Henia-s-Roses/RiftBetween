@@ -9,11 +9,6 @@ public abstract class EnemyBase : NetworkBehaviour
     public float maxHP = 30f;
     public float contactDamage = 10f;
 
-    [Header("World Skins — assign all 3 in Inspector")]
-    public Sprite worldASkin;
-    public Sprite worldBSkin;
-    public Sprite riftSkin;
-
     [SyncVar(hook = nameof(OnHPChanged))]
     public float currentHP;
 
@@ -46,15 +41,7 @@ public abstract class EnemyBase : NetworkBehaviour
 
     public override void OnStartClient( )
     {
-        WorldManager.OnWorldChanged += ApplySkin;
 
-        if (WorldManager.Instance != null)
-            ApplySkin((WorldState)WorldManager.Instance.activeWorld);
-
-        // Client never simulates physics for enemies.
-        // NetworkTransform drives position entirely on the client side.
-        // isKinematic=true + gravityScale=0 stops all client-side physics
-        // so it doesn't fight incoming position updates from NetworkTransform.
         if (!isServer && rb != null)
         {
             rb.isKinematic = true;
@@ -62,22 +49,6 @@ public abstract class EnemyBase : NetworkBehaviour
             rb.linearVelocity = Vector2.zero;
             rb.angularVelocity = 0f;
         }
-    }
-
-    protected virtual void OnDestroy( )
-    {
-        WorldManager.OnWorldChanged -= ApplySkin;
-    }
-
-    private void ApplySkin(WorldState world)
-    {
-        if (spriteRenderer == null) return;
-
-        spriteRenderer.sprite = world switch
-        {
-            WorldState.WorldA => worldASkin,
-            WorldState.WorldB => worldBSkin
-        };
     }
 
     private void OnHPChanged(float oldHP, float newHP) { }

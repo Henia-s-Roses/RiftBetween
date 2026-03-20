@@ -3429,13 +3429,14 @@ MonoBehaviour:
   - {fileID: 3668021530282452690, guid: 99e88f9fbfece8449af2040d00fa2938, type: 3}
   - {fileID: 1648234733460352610, guid: 87978bb3cb9b95e47aaa2c7c8549b48f, type: 3}
   - {fileID: 2909875540296938898, guid: a64d71db9b3581b4fb9cd5c056973385, type: 3}
-  - {fileID: 3394889009399067298, guid: 070a26b212fd14049a247effb2aa7c79, type: 3}
   - {fileID: 4773789451583210021, guid: 18f76a02fb8e11244bef6f3070e7fa50, type: 3}
   - {fileID: 4597229407299769403, guid: 3a247a26e75797f42bba110f7ddc3139, type: 3}
   - {fileID: 297522732299410518, guid: f511cd27b834cc24493a69c5b4837f93, type: 3}
   - {fileID: 7249941757796461677, guid: 71ef6e4b1b2fb1548a82e02324c8d6da, type: 3}
   - {fileID: 6293606340923556150, guid: f35cac3ec2f542247a961d1ed3d81c1a, type: 3}
-  - {fileID: 863138659297616414, guid: 5f7ea12c2160d8644aa1ed0bae5846a6, type: 3}
+  - {fileID: 6679783802021260202, guid: 0f9692da27a35e64fb6c73920e21165e, type: 3}
+  - {fileID: 1140409485138595432, guid: e3543dbbee0fcec4f902848ce6828b20, type: 3}
+  - {fileID: 7256537862878482696, guid: b0109555d09acc541b823e6a39888ba7, type: 3}
   exceptionsDisconnect: 1
   snapshotSettings:
     bufferTimeMultiplier: 2
@@ -3454,7 +3455,7 @@ MonoBehaviour:
   lobbyPlayerPrefab: {fileID: 0}
   playerPrefabA: {fileID: 3668021530282452690, guid: 99e88f9fbfece8449af2040d00fa2938, type: 3}
   playerPrefabB: {fileID: 3668021530282452690, guid: 4189d126a8aee9c4881b30a3d6ca067b, type: 3}
-  stage1Scene: TestScene
+  stage1Scene: Stage1
   stage2Scene: Stage2
   lobbyScene: LobbyScene
 --- !u!4 &1981520455
@@ -3562,6 +3563,82 @@ Transform:
   m_GameObject: {fileID: 1998549428}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2011535094
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2011535096}
+  - component: {fileID: 2011535095}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2011535095
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2011535094}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79f77e1ed5a870443a1d0f5307ebe0ca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
+  musicVolume: 0.6
+  sfxVolume: 1
+  musicMainMenu: {fileID: 0}
+  musicWorldA: {fileID: 0}
+  musicWorldB: {fileID: 0}
+  musicStage2: {fileID: 0}
+  musicBoss: {fileID: 0}
+  musicVictory: {fileID: 0}
+  musicGameOver: {fileID: 0}
+  sfxMeleeHit: {fileID: 0}
+  sfxProjectileFire: {fileID: 0}
+  sfxPlayerHurt: {fileID: 0}
+  sfxPlayerDeath: {fileID: 0}
+  sfxPlayerRespawn: {fileID: 0}
+  sfxJump: {fileID: 0}
+  sfxLand: {fileID: 0}
+  sfxEnemyHurt: {fileID: 0}
+  sfxEnemyDeath: {fileID: 0}
+  sfxSlimeSplit: {fileID: 0}
+  sfxMageFire: {fileID: 0}
+  sfxBossHurt: {fileID: 0}
+  sfxBossDeath: {fileID: 0}
+  sfxWorldSwap: {fileID: 0}
+  sfxCrateBreak: {fileID: 0}
+  sfxItemPickup: {fileID: 0}
+  sfxHeal: {fileID: 0}
+  sfxShieldActivate: {fileID: 0}
+  sfxShieldBreak: {fileID: 0}
+  sfxRiftShardActivate: {fileID: 0}
+  sfxButtonClick: {fileID: 0}
+  sfxCharacterSelect: {fileID: 0}
+  sfxGameStart: {fileID: 0}
+--- !u!4 &2011535096
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2011535094}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -4046,6 +4123,7 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1856033104}
+  - {fileID: 2011535096}
   - {fileID: 1981520455}
   - {fileID: 1998549430}
   - {fileID: 242243193}

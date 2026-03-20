@@ -1,87 +1,121 @@
 // MageEnemy.cs
-// Ranged enemy. Stands idle until a player enters detection range,
-// then stops moving and fires orb projectiles at them on a timer.
+
 
 using Mirror;
 using UnityEngine;
 
 public class MageEnemy : EnemyBase
 {
-    // ?? Inspector ?????????????????????????????????????????????????????????????
-
     [Header("Mage Settings")]
-    public float detectionRange = 7f;
-    public float fireRate = 2.5f;   // Seconds between shots
-    public float projectileDamage = 12f;
-    public float preferredRange = 5f;     // Mage tries to stay at this distance from player
+    public float detectionRange = 10f;   
+    public float preferredRange = 5f;    
+    public float retreatSpeed = 2f;    
+    public float fireRate = 2.5f;  
+    public float projectileDamage = 15f;
 
-    [Header("Prefab")]
-    [Tooltip("Assign the OrbProjectile prefab here")]
+    [Header("Projectile")]
+    [Tooltip("Assign the OrbProjectile prefab")]
     public GameObject orbPrefab;
 
-    // ?? State ?????????????????????????????????????????????????????????????????
+    public Transform firePoint;
 
-    private float fireTimer = 0f;
-
-    // ?? Server-side AI loop ???????????????????????????????????????????????????
+    private float _fireTimer;
 
     private void FixedUpdate( )
     {
         if (!isServer) return;
-        fireTimer -= Time.fixedDeltaTime;
+
+        _fireTimer -= Time.fixedDeltaTime;
 
         GameObject target = GetClosestPlayer( );
-        if (target == null) return;
 
-        float dist = Vector2.Distance(transform.position, target.transform.position);
-        if (dist > detectionRange) return; // Out of range � stay idle
-
-        // Maintain preferred distance � back away if player gets too close
-        MaintainDistance(target);
-
-        // Fire on timer
-        if (fireTimer <= 0f)
+        if (target == null)
         {
-            FireOrb(target.transform.position);
-            fireTimer = fireRate;
-        }
-    }
-
-    private void MaintainDistance(GameObject target)
-    {
-        float dist = Vector2.Distance(transform.position, target.transform.position);
-        Vector2 dir = ( target.transform.position - transform.position ).normalized;
-
-        if (dist < preferredRange)
-        {
-            // Too close � back away
-            rb.linearVelocity = new Vector2(-dir.x * 2f, rb.linearVelocity.y);
-        } else
-        {
-            // At good range � stand still
             rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
-        }
-
-        if (spriteRenderer != null && dir.x != 0)
-            spriteRenderer.flipX = dir.x < 0;
-    }
-
-    // Spawns an orb projectile aimed at the target's current position.
-    // Not homing � fires in a straight line toward where the player was.
-    private void FireOrb(Vector3 targetPosition)
-    {
-        if (orbPrefab == null)
-        {
-            RiftLogger.Error("OrbPrefab not assigned on MageEnemy", this);
+            RpcSetMoving(false);
             return;
         }
 
-        Vector2 dir = ( targetPosition - transform.position ).normalized;
+        float dist = Vector2.Distance(transform.position, target.transform.position);
 
-        GameObject orb = Instantiate(orbPrefab, transform.position, Quaternion.identity);
-        orb.GetComponent<OrbProjectile>( )?.Initialize(dir, projectileDamage, isEnemy: true);
+        if (dist > detectionRange)
+        {
+            // Out of range — idle
+            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            RpcSetMoving(false);
+            return;
+        }
+
+        // Face the target regardless of movement
+        Vector2 dir = ( target.transform.position - transform.position ).normalized;
+
+        if (dir.x != 0f)
+        {
+            Vector3 scale = transform.localScale;
+            scale.x = dir.x > 0 ? Mathf.Abs(scale.x) : -Mathf.Abs(scale.x);
+            transform.localScale = scale;
+        }
+
+        if (dist < preferredRange)
+        {
+            // Too close — back away from the player
+            rb.linearVelocity = new Vector2(-dir.x * retreatSpeed, rb.linearVelocity.y);
+            RpcSetMoving(true);
+        } else
+        {
+            // Good range — stand still and shoot
+            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            RpcSetMoving(false);
+        }
+
+        // Fire on cooldown
+        if (_fireTimer <= 0f)
+        {
+            FireOrb(target.transform.position);
+            _fireTimer = fireRate;
+        }
+    }
+
+    protected override void OnTriggerEnter2D(Collider2D other) { }
+
+    [Server]
+    private void FireOrb(Vector3 targetPos)
+    {
+        if (orbPrefab == null)
+        {
+            RiftLogger.Error("MageEnemy: orbPrefab not assigned", this);
+            return;
+        }
+
+        // Use firePoint if assigned, otherwise fire from center
+        Vector3 spawnPos = firePoint != null ? firePoint.position : transform.position;
+
+        Vector2 fireDir = ( targetPos - spawnPos ).normalized;
+
+        GameObject orb = Instantiate(orbPrefab, spawnPos, Quaternion.identity);
+        orb.GetComponent<OrbProjectile>( )?.Initialize(fireDir, projectileDamage, isEnemy: true);
         NetworkServer.Spawn(orb);
 
-        RiftLogger.Log($"Mage fired orb toward {targetPosition}", this);
+        RpcTriggerAttack( );
+        RiftLogger.Log($"Mage fired orb toward {targetPos}", this);
+    }
+
+    [ClientRpc]
+    private void RpcTriggerAttack( )
+    {
+        enemyAnimator?.TriggerAttack( );
+    }
+
+    [ClientRpc]
+    private void RpcSetMoving(bool moving)
+    {
+        enemyAnimator?.SetMoving(moving);
+    }
+
+    [Server]
+    protected override void Die( )
+    {
+        RpcOnDeath( );
+        NetworkServer.Destroy(gameObject);
     }
 }
