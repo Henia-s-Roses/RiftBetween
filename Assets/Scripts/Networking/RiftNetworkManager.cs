@@ -5,6 +5,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
 using UnityEngine.SceneManagement;
+using kcp2k;
 
 public class RiftNetworkManager : NetworkManager
 {
@@ -20,6 +21,12 @@ public class RiftNetworkManager : NetworkManager
                                                 // replace "GameScene" after tesiting
     public string stage2Scene = "Stage2";       // "Stage2"
     public string lobbyScene = "LobbyScene";
+
+
+    // DIRECT CONN
+    public int hostPort = 67;   // 676767
+    public string HostAddress => networkAddress;
+    kcp2k.KcpTransport netTrans;
 
 
 
@@ -49,7 +56,7 @@ public class RiftNetworkManager : NetworkManager
     public override void Awake( )
     {
         base.Awake( );
-
+        netTrans = GetComponent<kcp2k.KcpTransport>( );
         discovery = GetComponent<RiftNetworkDiscovery>( );
     }
 
@@ -77,6 +84,13 @@ public class RiftNetworkManager : NetworkManager
     public void JoinGame(string hostAddress)
     {
 
+        networkAddress = hostAddress;
+        base.StartClient( );
+    }
+
+    public void JoinGame(string hostAddress, ushort portNumber)
+    {
+        netTrans.port = portNumber; 
         networkAddress = hostAddress;
         base.StartClient( );
     }
@@ -313,8 +327,9 @@ public class RiftNetworkManager : NetworkManager
         base.OnClientConnect( );
 
         LobbyUI.Instance.OnJoinedLobby( );
-    
-    
+
+        // push host IP and port to lobby UI for display
+        LobbyUI.Instance?.ShowServerDetails(networkAddress, hostPort);
     }
 
     public override void OnClientDisconnect( )

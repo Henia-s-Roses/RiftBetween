@@ -78,7 +78,7 @@ public class RiftNetworkPlayer : NetworkBehaviour
     private IEnumerator RefreshUINextFrame( )
     {
         yield return null; // Wait one frame
-        LobbyUI.Instance.RefreshLobbyState( );
+        LobbyUI.Instance?.RefreshLobbyState( );
     }
 
 

@@ -20,6 +20,14 @@ public class LobbyUI : MonoBehaviour
     [Header("Screens")]
     public GameObject mainMenuScreen;
     public GameObject lobbyScreen;
+    [Header("Lobby Details")]
+    public TMP_Text serverDetailsLabel;
+
+    // DIRECT CONNECT LIKE LECTURE NI SIR
+    [Header("Direct Connect")]
+    public TMP_InputField ipInputField;     // input for host IP address
+    public TMP_InputField portInputField;   // ipnut for host port
+    public Button directJoinButton;         // child of main menu screen    
 
 
     // main menu buttons and lobby list
@@ -91,6 +99,7 @@ public class LobbyUI : MonoBehaviour
         refreshButton.onClick.AddListener(OnRefresh);
         startButton.onClick.AddListener(OnStartGame);
         leaveLobbyButton.onClick.AddListener(OnLeaveLobby);
+        directJoinButton.onClick.AddListener(OnDirectJoin);
 
 
         // BUTTONS CALL CMDSELECTCHARACTER from networkplayer for selection
@@ -131,7 +140,11 @@ public class LobbyUI : MonoBehaviour
         mainMenuScreen.SetActive(false);
         lobbyScreen.SetActive(true);
         errorLabel.text = "";
-        
+
+        // clear server details until populated by OnJoinedLobby
+        if (serverDetailsLabel != null)
+            serverDetailsLabel.text = "";
+
         RefreshLobbyState( );
     }
 
@@ -343,8 +356,16 @@ public class LobbyUI : MonoBehaviour
 
 
     // called by RiftNetworkManager when this client successfully joins a lobby
-    public void OnJoinedLobby( ) => ShowLobbyRoom( );
+    public void OnJoinedLobby( )
+    {
+        ShowLobbyRoom( );
 
+        // display the host address the client connected to
+        LobbyUI.Instance?.ShowServerDetails(
+            RiftNetworkManager.singleton.networkAddress,
+            RiftNetworkManager.singleton.hostPort
+        );
+    }
     // called by RiftNetworkManager when this client disconnects
     public void OnDisconnected( ) => ShowMainMenu( );
 
@@ -379,6 +400,32 @@ public class LobbyUI : MonoBehaviour
             }
             return null;
         }
+    }
+
+
+
+
+
+    private void OnDirectJoin( )
+    {
+        // grab whatever the player typed into the IP field
+        string ip = ipInputField.text.Trim( );
+        ushort portNumber = ushort.Parse(portInputField.text.Trim( ));
+        if (string.IsNullOrEmpty(ip))
+        {
+            return;
+        }
+
+        AudioManager.Instance.PlayButtonClick( );
+        RiftNetworkManager.singleton.JoinGame(ip, portNumber);
+    }
+
+
+    // called after joining — displays host details in the lobby screen
+    public void ShowServerDetails(string hostIp, int port)
+    {
+        if (serverDetailsLabel == null) return;
+        serverDetailsLabel.text = $"Host: {hostIp}  |  Port: {port}";
     }
 }
 
