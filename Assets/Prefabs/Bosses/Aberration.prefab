@@ -10,7 +10,6 @@ GameObject:
   m_Component:
   - component: {fileID: 6261926036804671693}
   - component: {fileID: 7945760205190237471}
-  - component: {fileID: 355344253269461655}
   - component: {fileID: 8326994668854944403}
   - component: {fileID: 346751360221725818}
   - component: {fileID: 7713969843428138619}
@@ -48,7 +47,7 @@ Animator:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7256537862878482696}
-  m_Enabled: 1
+  m_Enabled: 0
   m_Avatar: {fileID: 0}
   m_Controller: {fileID: 9100000, guid: b3bb55a1f5befbf4a97b8d04a5f786ca, type: 2}
   m_CullingMode: 0
@@ -62,18 +61,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &355344253269461655
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7256537862878482696}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9bd375d84fc9b144ab3cbcd25eea3876, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyAnimator
 --- !u!114 &8326994668854944403
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -96,7 +83,10 @@ MonoBehaviour:
   attackRate: 1.5
   attackDamage: 35
   isFinalBoss: 0
-  nextScene: Stage2
+  stage1Root: {fileID: 0}
+  stage2Root: {fileID: 0}
+  stage2SpawnPoint1: {fileID: 0}
+  stage2SpawnPoint2: {fileID: 0}
 --- !u!114 &346751360221725818
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -338,8 +328,53 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: -8653719598885068355, guid: accd00fdba3a11648929d1e3b2bd0845, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5956004913378548198}
+    - targetCorrespondingSourceObject: {fileID: -8653719598885068355, guid: accd00fdba3a11648929d1e3b2bd0845, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5905377332932842556}
   m_SourcePrefab: {fileID: 4843985084834002234, guid: accd00fdba3a11648929d1e3b2bd0845, type: 3}
+--- !u!1 &2788173105315337544 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -8653719598885068355, guid: accd00fdba3a11648929d1e3b2bd0845, type: 3}
+  m_PrefabInstance: {fileID: 2402208011197150453}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &5956004913378548198
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2788173105315337544}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: b3bb55a1f5befbf4a97b8d04a5f786ca, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &5905377332932842556
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2788173105315337544}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bd375d84fc9b144ab3cbcd25eea3876, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyAnimator
 --- !u!4 &3925324124382367019 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -7552582706839291426, guid: accd00fdba3a11648929d1e3b2bd0845, type: 3}

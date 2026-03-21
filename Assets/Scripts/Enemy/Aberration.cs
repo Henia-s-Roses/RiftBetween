@@ -86,7 +86,6 @@ public class BossController : EnemyBase
     [Server]
     protected override void Die( )
     {
-        RiftLogger.System($"Boss defeated — isFinalBoss: {isFinalBoss}", this);
         RpcOnDeath( );
 
         if (isFinalBoss)
@@ -98,7 +97,6 @@ public class BossController : EnemyBase
             GameSession.CurrentPhase = GamePhase.Stage2;
             GameSession.IsStage2 = true;
 
-            // Collect player positions before doing anything else
             Vector3 spawn1 = stage2SpawnPoint1 != null
                 ? stage2SpawnPoint1.position
                 : new Vector3(-2f, 0f, 0f);
@@ -119,12 +117,10 @@ public class BossController : EnemyBase
     [ClientRpc]
     private void RpcSwapStage(Vector3 spawn1, Vector3 spawn2)
     {
-        RiftLogger.System("Stage 1 → Stage 2 swap", this);
 
         if (stage1Root != null) stage1Root.SetActive(false);
         if (stage2Root != null) stage2Root.SetActive(true);
 
-        // Find and teleport players by sorted index so P1 always hits spawn1
         var players = FindObjectsOfType<RiftNetworkPlayer>( );
         System.Array.Sort(players, (a, b) => a.playerIndex.CompareTo(b.playerIndex));
 
@@ -143,7 +139,6 @@ public class BossController : EnemyBase
             RiftLogger.Log($"Player {players[i].playerIndex} teleported to {spawnPos}", this);
         }
 
-        // Swap music to Stage 2 track
         AudioManager.Instance?.PlayMusicStage2( );
     }
 
