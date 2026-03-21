@@ -339,6 +339,7 @@ public class LobbyUI : MonoBehaviour
                 ip = address.ToString( );
             }
         }
+        Debug.Log($"IP: {ip}");
         return ip;
     }
 }

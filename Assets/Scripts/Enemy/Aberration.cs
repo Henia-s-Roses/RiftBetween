@@ -16,6 +16,8 @@ public class BossController : EnemyBase
     [Tooltip("True = Stage 2 boss. Defeat triggers win screen instead of scene change.")]
     public bool isFinalBoss = false;
 
+    [SerializeField] public GameObject winScreen;
+
     private float _attackTimer;
 
     private void FixedUpdate( )
@@ -105,6 +107,6 @@ public class BossController : EnemyBase
         RiftLogger.System("Victory!", this);
         GameSession.CurrentPhase = GamePhase.Win;
         AudioManager.Instance?.PlayMusicVictory( );
-        // WinUI.Instance?.Show();
+        winScreen.SetActive(true);
     }
 }
