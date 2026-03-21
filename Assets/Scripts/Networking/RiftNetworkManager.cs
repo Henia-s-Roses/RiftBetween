@@ -1,11 +1,10 @@
-﻿// RiftNetworkManager.cs    (NETWORK MANAGER)
+﻿// RiftNetworkManager.cs
 
 using Mirror;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
 using UnityEngine.SceneManagement;
-using kcp2k;
 
 public class RiftNetworkManager : NetworkManager
 {
@@ -23,12 +22,7 @@ public class RiftNetworkManager : NetworkManager
     public string lobbyScene = "LobbyScene";
 
 
-    // DIRECT CONN
-    public int hostPort = 67;   // 676767
-    public string HostAddress => networkAddress;
-    kcp2k.KcpTransport netTrans;
-
-
+    // ── Runtime ───────────────────────────────────────────────────────────────
 
     // for tracking connected players and gmaeobjects in the game
     private Dictionary<NetworkConnection, GameObject> connectedPlayers = new Dictionary<NetworkConnection, GameObject>( );
@@ -44,7 +38,7 @@ public class RiftNetworkManager : NetworkManager
 
 
 
-
+    
 
     // pub properties for lobby state
     public int PlayerCount => connectedPlayers.Count;
@@ -56,7 +50,7 @@ public class RiftNetworkManager : NetworkManager
     public override void Awake( )
     {
         base.Awake( );
-        netTrans = GetComponent<kcp2k.KcpTransport>( );
+
         discovery = GetComponent<RiftNetworkDiscovery>( );
     }
 
@@ -84,13 +78,6 @@ public class RiftNetworkManager : NetworkManager
     public void JoinGame(string hostAddress)
     {
 
-        networkAddress = hostAddress;
-        base.StartClient( );
-    }
-
-    public void JoinGame(string hostAddress, ushort portNumber)
-    {
-        netTrans.port = portNumber; 
         networkAddress = hostAddress;
         base.StartClient( );
     }
@@ -327,9 +314,8 @@ public class RiftNetworkManager : NetworkManager
         base.OnClientConnect( );
 
         LobbyUI.Instance.OnJoinedLobby( );
-
-        // push host IP and port to lobby UI for display
-        LobbyUI.Instance?.ShowServerDetails(networkAddress, hostPort);
+    
+    
     }
 
     public override void OnClientDisconnect( )
