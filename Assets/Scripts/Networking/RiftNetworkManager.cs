@@ -1,4 +1,4 @@
-﻿// RiftNetworkManager.cs
+﻿// RiftNetworkManager.cs    (NETWORK MANAGER)
 
 using Mirror;
 using UnityEngine;
@@ -22,13 +22,12 @@ public class RiftNetworkManager : NetworkManager
     public string lobbyScene = "LobbyScene";
 
 
-    // ── Runtime ───────────────────────────────────────────────────────────────
 
     // for tracking connected players and gmaeobjects in the game
     private Dictionary<NetworkConnection, GameObject> connectedPlayers = new Dictionary<NetworkConnection, GameObject>( );
 
-    private Dictionary<NetworkConnection, (CharacterChoice choice, int index)> _confirmedChoices
-        = new Dictionary<NetworkConnection, (CharacterChoice, int)>( );
+    // save player character choices based on netconn
+    private Dictionary<NetworkConnection, (CharacterChoice choice, int index)> _confirmedChoices = new Dictionary<NetworkConnection, (CharacterChoice, int)>( );
 
     // will be used for lan dicovery, "avialble lobbies"
     private RiftNetworkDiscovery discovery;
@@ -37,6 +36,13 @@ public class RiftNetworkManager : NetworkManager
     public static new RiftNetworkManager singleton => NetworkManager.singleton as RiftNetworkManager;
 
 
+
+
+
+    // pub properties for lobby state
+    public int PlayerCount => connectedPlayers.Count;
+
+    public bool LobbyFull => connectedPlayers.Count >= 2;
 
     // ── INITIALZIATIONS ─────────────────────────────────────────────────────────────
 
@@ -49,7 +55,7 @@ public class RiftNetworkManager : NetworkManager
 
 
 
-    // ── Host / Client controls ────────────────────────────────────────────────
+    // ── Host / Client methods  ────────────────────────────────────────────────
 
     public void CreateLobby( )
     {
@@ -65,6 +71,8 @@ public class RiftNetworkManager : NetworkManager
         discovery.AdvertiseServer( );   // eto yung for "available lobbies"
     }
 
+
+
     // join the lobby as aclient
     public void JoinGame(string hostAddress)
     {
@@ -79,48 +87,58 @@ public class RiftNetworkManager : NetworkManager
     {
         if (!NetworkServer.active) return;
 
+
+        // require 2 palyers to start
         if (connectedPlayers.Count < 2)
         {
-            LobbyUI.Instance?.ShowStartError("Need 2 players to start.");
+            LobbyUI.Instance.ShowStartError("Need 2 players to start.");
             return;
         }
 
+        // get players in game then check if theey have slection
         RiftNetworkPlayer[] players = FindObjectsByType<RiftNetworkPlayer>(FindObjectsSortMode.None);
-
         foreach (RiftNetworkPlayer plr in players)
         {
             if (plr.selectedCharacter == CharacterChoice.None)
             {
-                LobbyUI.Instance?.ShowStartError("All players must select a character.");
+                LobbyUI.Instance.ShowStartError("All players must select a character.");
                 return;
             }
         }
-
+        
+        // no dup
         if (players[0].selectedCharacter == players[1].selectedCharacter)
         {
-            LobbyUI.Instance?.ShowStartError("Players must choose different characters.");
+            LobbyUI.Instance.ShowStartError("Players must choose different characters.");
             return;
         }
+
+
 
         _confirmedChoices.Clear( );
         foreach (var p in players)
         {
             p.ConfirmCharacter( );
             _confirmedChoices[p.connectionToClient] = (p.selectedCharacter, p.playerIndex);
-            RiftLogger.Log($"Confirmed: Player {p.playerIndex} = {p.selectedCharacter}", this);
         }
+
 
 
         discovery.StopDiscovery( );
 
         // set game session phase to stage 1 
         GameSession.CurrentPhase = GamePhase.Stage1;    // first stage
+        
+        // AUDIO
         AudioManager.Instance.PlayGameStart( );
         AudioManager.Instance.PlayMusicWorldA( );
+        
         ServerChangeScene(stage1Scene); // load firt stage after character selection and confirmation
     }
 
 
+
+    //// LEEAVE LOBBY
     public void LeaveLobby( )
     {
         if (NetworkServer.active && NetworkClient.isConnected)
@@ -131,8 +149,10 @@ public class RiftNetworkManager : NetworkManager
             StopClient( );
         }
 
+        // clear connected players
         connectedPlayers.Clear( );
 
+        // go back to lobby scene if from stage scenes
         if (SceneManager.GetActiveScene( ).name != lobbyScene)
         {
             SceneManager.LoadScene(lobbyScene);
@@ -144,7 +164,7 @@ public class RiftNetworkManager : NetworkManager
 
 
 
-    // ── Mirror overrides ──────────────────────────────────────────────────────
+    // ── Mirror meth overrides ──────────────────────────────────────────────────
 
     public override void OnServerConnect(NetworkConnectionToClient conn)
     {
@@ -164,20 +184,24 @@ public class RiftNetworkManager : NetworkManager
 
     public override void OnServerAddPlayer(NetworkConnectionToClient conn)
     {
+        // create player index basd on the playre dict
         int playerIndex = connectedPlayers.Count + 1;
 
+        // temp plyr lobbt objs
         GameObject lobbyObj = Instantiate(playerPrefab);
         NetworkServer.AddPlayerForConnection(conn, lobbyObj);
 
+
+        // set player index for player tracking on network player
         RiftNetworkPlayer netPlayer = lobbyObj.GetComponent<RiftNetworkPlayer>( );
         netPlayer.SetPlayerIndex(playerIndex);
         connectedPlayers[conn] = lobbyObj;
 
-        RiftLogger.Log($"Lobby player {playerIndex} connected", this);
-        StartCoroutine(NotifyUINextFrame( ));
+
+        StartCoroutine(PrepUI( ));
     }
 
-    private IEnumerator NotifyUINextFrame( )
+    private IEnumerator PrepUI( )
     {
         yield return null;
         LobbyUI.Instance?.OnPlayerCountChanged(connectedPlayers.Count);
@@ -188,53 +212,79 @@ public class RiftNetworkManager : NetworkManager
     {
         base.OnServerSceneChanged(sceneName);
 
-        // Only spawn character prefabs when loading a game scene
+        // work only for lobbies that can start
         if (sceneName != stage1Scene && sceneName != stage2Scene) return;
         if (_confirmedChoices.Count == 0) return;
 
-        // Get start positions — collect them all so each player gets a unique one
-        Transform pos1 = GetStartPosition( );
-        Transform pos2 = GetStartPosition( );
 
-        // If both returned the same (round-robin with only 1 position), offset pos2
-        bool samePos = pos1 == pos2 || pos1 == null;
-
-        int spawnIndex = 0;
-        foreach (var kvp in _confirmedChoices)
+        // get start positions 
+        List<Vector3> spawnPositions = new List<Vector3>( );
+        if (startPositions != null && startPositions.Count > 0)
         {
-            NetworkConnectionToClient conn = kvp.Key as NetworkConnectionToClient;
-            if (conn == null) continue;
+            foreach (Transform sp in startPositions)
+                spawnPositions.Add(sp.position);
+        }
 
-            CharacterChoice choice = kvp.Value.choice;
-            int index = kvp.Value.index;
 
-            GameObject prefab = choice == CharacterChoice.PixelKnight
-                ? playerPrefabA
-                : playerPrefabB;
 
-            // Pick spawn position — offset second player if positions are the same
-            Vector3 spawnPos = Vector3.zero;
-            if (pos1 != null)
-                spawnPos = spawnIndex == 0
-                    ? pos1.position
-                    : ( samePos ? pos1.position + Vector3.right * 2f : pos2.position );
+        while (spawnPositions.Count < _confirmedChoices.Count)
+            spawnPositions.Add(new Vector3(spawnPositions.Count * 3f, 0f, 0f));
 
+
+
+        var sorted = new List<KeyValuePair<NetworkConnectionToClient, (CharacterChoice choice, int index)>>( );
+
+
+        // add the confirmed choices of clients with index
+        foreach (var keyvalpair in _confirmedChoices)
+        {
+            var conn = keyvalpair.Key as NetworkConnectionToClient;
+            if (conn != null)
+                sorted.Add(new KeyValuePair<NetworkConnectionToClient, (CharacterChoice, int)>(conn, keyvalpair.Value));
+        }
+
+        // sort properly for no mixups
+        sorted.Sort((a, b) => a.Value.index.CompareTo(b.Value.index));
+
+
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            var conn = sorted[i].Key;
+            var choice = sorted[i].Value.choice;
+            var index = sorted[i].Value.index;
+
+            GameObject prefab;
+
+            if (choice == CharacterChoice.PixelKnight)
+                prefab = playerPrefabA;
+            else
+                prefab = playerPrefabB;
+
+
+            // START SPAWNING PLAYER OBJECTS
+                Vector3 spawnPos = spawnPositions[i];
             GameObject character = Instantiate(prefab, spawnPos, Quaternion.identity);
 
-            // Replace the lobby player object with the real character
+
             NetworkServer.ReplacePlayerForConnection(conn, character, true);
             connectedPlayers[conn] = character;
 
-            // Apply identity to the new character
+
+            // LOCKI N
             RiftNetworkPlayer newNetPlayer = character.GetComponent<RiftNetworkPlayer>( );
             newNetPlayer.SetPlayerIndex(index);
+            newNetPlayer.selectedCharacter = choice;
             newNetPlayer.ConfirmCharacter( );
 
-            RiftLogger.Log($"Spawned Player {index} as {choice} ({prefab.name})", this);
-            spawnIndex++;
         }
 
-        _confirmedChoices.Clear( );
+
+        // for scene change  to scene 2
+        if (sceneName == stage2Scene)
+            _confirmedChoices.Clear( );
+
+        if (sceneName == stage2Scene)
+            AudioManager.Instance?.PlayMusicWorldB( );
     }
 
 
@@ -244,15 +294,14 @@ public class RiftNetworkManager : NetworkManager
         if (connectedPlayers.ContainsKey(conn))
             connectedPlayers.Remove(conn);
 
-        bool inGame = GameSession.CurrentPhase == GamePhase.Stage1
-                   || GameSession.CurrentPhase == GamePhase.Stage2;
+
+        // DISCONNECT ALL PALYERS BaCK TO LOBBY iF ONE DCs
+        bool inGame = GameSession.CurrentPhase == GamePhase.Stage1 || GameSession.CurrentPhase == GamePhase.Stage2;
 
         base.OnServerDisconnect(conn);
 
-        // If someone disconnects mid-game → return everyone to lobby
         if (inGame)
         {
-            RiftLogger.System("Player disconnected mid-game. Returning to lobby...", this);
 
             GameSession.Reset( );
             ServerChangeScene(lobbyScene);
@@ -263,12 +312,16 @@ public class RiftNetworkManager : NetworkManager
     {
         base.OnClientConnect( );
 
-        LobbyUI.Instance?.OnJoinedLobby( );
+        LobbyUI.Instance.OnJoinedLobby( );
+    
+    
     }
 
     public override void OnClientDisconnect( )
     {
-        LobbyUI.Instance?.OnDisconnected( );
+        LobbyUI.Instance.OnDisconnected( );
+
+
 
         if (SceneManager.GetActiveScene( ).name != lobbyScene)
         {
@@ -306,10 +359,5 @@ public class RiftNetworkManager : NetworkManager
     }
 
 
-
-    // pub properties for lobby state
-    public int PlayerCount => connectedPlayers.Count;
-
-    public bool LobbyFull => connectedPlayers.Count >= 2;
 
 }

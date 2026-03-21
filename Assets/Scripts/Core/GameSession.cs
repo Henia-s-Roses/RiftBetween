@@ -30,7 +30,7 @@ public static class GameSession
     public static int TotalKills = 0;
     public static int SwapsSurvived = 0;
     public static int SuccessfulRevives = 0;
-    public static bool CompletedNoWipe = true;  // Flipped to false on any Game Over attempt
+    public static bool CompletedNoWipe = true; 
 
     // -- RESET GAME STATES -----------------------------------
     public static void Reset( )

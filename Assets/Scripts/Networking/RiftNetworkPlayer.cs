@@ -10,7 +10,7 @@ public enum CharacterChoice { None = 0, PixelKnight = 1, InkWanderer = 2 }
 
 public class RiftNetworkPlayer : NetworkBehaviour
 {
-    // ── Synced state ──────────────────────────────────────────────────────────
+    // ── SYNC VARS ─ ──────────────────────────────
 
     // player index or lobby slot, synced for both players
     [SyncVar(hook = nameof(OnPlayerIndexChanged))]
@@ -25,19 +25,22 @@ public class RiftNetworkPlayer : NetworkBehaviour
 
 
 
-    // ── Server-side setup ─────────────────────────────────────────────────────
+    // ── Server-side setup ──────────────────────────────────────────────────
 
     [Server]
     public void SetPlayerIndex(int index)
     {
         playerIndex = index;
     }
+    
+
 
     // Called from the client when a player clicks a character button.
     [Command]
     public void CmdSelectCharacter(CharacterChoice choice)
     {
         AudioManager.Instance.PlayCharacterSelect( );
+
 
         // check other players (with networkplayer script) if taken na yung character chosen
         foreach (var netPlayer in FindObjectsByType<RiftNetworkPlayer>(FindObjectsSortMode.None))
@@ -58,7 +61,7 @@ public class RiftNetworkPlayer : NetworkBehaviour
 
 
 
-    // ── SyncVar hooks ─────────────────────────────────────────────────────────
+    // ── SyncVar hooks ────────────────────
 
     private void OnPlayerIndexChanged(int oldVal, int newVal)
     {
@@ -75,7 +78,7 @@ public class RiftNetworkPlayer : NetworkBehaviour
     private IEnumerator RefreshUINextFrame( )
     {
         yield return null; // Wait one frame
-        LobbyUI.Instance?.RefreshLobbyState( );
+        LobbyUI.Instance.RefreshLobbyState( );
     }
 
 
@@ -88,12 +91,10 @@ public class RiftNetworkPlayer : NetworkBehaviour
         switch (selectedCharacter)
         {
             case CharacterChoice.PixelKnight:
-                RiftLogger.Log($"Player {playerIndex + 1} locked in Pixel Knight (World A)", this);
                 homeWorld = WorldState.WorldA;
                 break;
 
             case CharacterChoice.InkWanderer:
-                RiftLogger.Log($"Player {playerIndex + 1} locked in Ink Wanderer (World B)", this);
                 homeWorld = WorldState.WorldB;
                 break;
         }
@@ -105,12 +106,12 @@ public class RiftNetworkPlayer : NetworkBehaviour
     [ClientRpc]
     private void RpcConfigureAttackMode(CharacterChoice character)
     {
+        // set attack version of char
         var attack = GetComponent<PlayerAttack>( );
         if (attack == null) return;
 
-        AttackMode mode = character == CharacterChoice.InkWanderer
-            ? AttackMode.Projectile
-            : AttackMode.Melee;
+        AttackMode mode = character == CharacterChoice.InkWanderer ? AttackMode.Projectile : AttackMode.Melee;
+
 
         attack.SetAttackMode(mode);
     }

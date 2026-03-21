@@ -9,19 +9,32 @@ public class PlayerMovement : NetworkBehaviour
 {
     // ── Inspector ─────────────────────────────────────────────────────────────
 
-    [Header("Movement")]
     [SerializeField] private float moveSpeed = GameConfig.PLAYER_MOVE_SPEED;
     [SerializeField] private float sprintSpeed = GameConfig.PLAYER_SPRINT_SPEED;
     [SerializeField] private float jumpForce = GameConfig.PLAYER_JUMP_FORCE;
 
-    [Header("Ground Check")]
-    [Tooltip("Empty child GameObject placed at the player's feet")]
     [SerializeField] private Transform groundCheck;
-    [Tooltip("Layer(s) considered as ground — set in Inspector")]
     [SerializeField] private LayerMask groundLayer;
     [SerializeField] private float groundCheckRadius = 0.15f;
 
     private PlayerAnimator _playerAnimator;
+
+
+
+
+    // ── Public props ──────────────────────────────────────────────────────────
+
+    public bool IsGrounded => _isGrounded;
+    public bool IsMoving => Mathf.Abs(_moveInput.x) > 0.01f;
+    public float HorizontalSpeed => Mathf.Abs(_rb.linearVelocity.x);
+    public float VerticalSpeed => _rb.linearVelocity.y;
+    public float FacingDirection => _facingRight ? 1f : -1f;
+
+
+
+
+
+
     // ── Synced state ──────────────────────────────────────────────────────────
 
     [SyncVar(hook = nameof(OnFacingChanged))]
@@ -152,6 +165,7 @@ public class PlayerMovement : NetworkBehaviour
         if (!_isGrounded) return;
 
         _rb.linearVelocity = new Vector2(_rb.linearVelocity.x, jumpForce);
+        AudioManager.Instance?.PlayJump( );
         RiftLogger.Log("Jump", this);
     }
 
@@ -176,7 +190,6 @@ public class PlayerMovement : NetworkBehaviour
             _rb.bodyType = RigidbodyType2D.Dynamic;
         }
 
-        RiftLogger.Log($"Movement locked: {locked}", this);
     }
 
     // ── Buffs ─────────────────────────────────────────────────────────────────
@@ -190,7 +203,6 @@ public class PlayerMovement : NetworkBehaviour
     {
         moveSpeed *= multiplier;
         sprintSpeed *= multiplier;
-        RiftLogger.Log($"Speed buff active — {multiplier}x for {duration}s", this);
 
         yield return new WaitForSeconds(duration);
 
@@ -241,11 +253,5 @@ public class PlayerMovement : NetworkBehaviour
 
 
 
-    // ── Public reads ──────────────────────────────────────────────────────────
 
-    public bool IsGrounded => _isGrounded;
-    public bool IsMoving => Mathf.Abs(_moveInput.x) > 0.01f;
-    public float HorizontalSpeed => Mathf.Abs(_rb.linearVelocity.x);
-    public float VerticalSpeed => _rb.linearVelocity.y;
-    public float FacingDirection => _facingRight ? 1f : -1f;
 }

@@ -117,8 +117,6 @@ public class PlayerRespawn : NetworkBehaviour
 
     // ── RPCs ──────────────────────────────────────────────────────────────────
 
-    // Teleports the player on all clients — keeps position in sync immediately
-    // without waiting for NetworkTransform's next tick
     [ClientRpc]
     private void RpcTeleport(Vector3 position)
     {

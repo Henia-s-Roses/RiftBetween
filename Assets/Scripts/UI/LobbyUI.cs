@@ -23,23 +23,21 @@ public class LobbyUI : MonoBehaviour
 
 
     // main menu buttons and lobby list
-    [Header("Main Menu")]
+    [Header("Main Menu BUTTONS")]
     public Button createLobbyButton;
     public Button refreshButton;
     public Transform lobbyListParent;
     public GameObject lobbyEntryPrefab;
 
 
-    // player 1 panel — name, character buttons, icon, status
-    [Header("Player 1 Panel")]
+    [Header("Player 1 Objs")]
     public TMP_Text player1NameLabel;
     public Button p1PickKnightButton;
     public Button p1PickWandererButton;
     public Image p1SelectedIcon;
     public TMP_Text p1StatusLabel;
 
-    // player 2 panel — same layout as player 1
-    [Header("Player 2 Panel")]
+    [Header("Player 2 ui objs")]
     public TMP_Text player2NameLabel;
     public Button p2PickKnightButton;
     public Button p2PickWandererButton;
@@ -47,8 +45,7 @@ public class LobbyUI : MonoBehaviour
     public TMP_Text p2StatusLabel;
 
 
-    // bottom bar — player count, start (host only), leave, error message
-    [Header("Lobby Bottom Bar")]
+    // lobby (inside)
     public TMP_Text playerCountText;
     public Button startButton;
     public Button leaveLobbyButton;
@@ -64,6 +61,7 @@ public class LobbyUI : MonoBehaviour
 
     // tracks discovered lobbies from network discovery
     private Dictionary<long, ServerResponse> discoveredServers = new Dictionary<long, ServerResponse>( );
+
 
     private bool _uiReady = false;
 
@@ -88,14 +86,14 @@ public class LobbyUI : MonoBehaviour
     {
         ShowMainMenu( );
 
-        // wire up buttons
+        // wire up buttons listerners
         createLobbyButton.onClick.AddListener(OnCreateLobby);
         refreshButton.onClick.AddListener(OnRefresh);
         startButton.onClick.AddListener(OnStartGame);
         leaveLobbyButton.onClick.AddListener(OnLeaveLobby);
 
 
-        // both panels send CmdSelectCharacter — server checks if choice is taken
+        // BUTTONS CALL CMDSELECTCHARACTER from networkplayer for selection
         p1PickKnightButton.onClick.AddListener(( ) => LocalPlayer.CmdSelectCharacter(CharacterChoice.PixelKnight));
         p1PickWandererButton.onClick.AddListener(( ) => LocalPlayer.CmdSelectCharacter(CharacterChoice.InkWanderer));
         p2PickKnightButton.onClick.AddListener(( ) => LocalPlayer.CmdSelectCharacter(CharacterChoice.PixelKnight));
@@ -115,11 +113,13 @@ public class LobbyUI : MonoBehaviour
         Instance = null;
     }
 
+
     // switch to main menu screen
     private void ShowMainMenu( )
     {
         AudioManager.Instance.PlayMusicMainMenu( );
         mainMenuScreen.SetActive(true);
+    
         lobbyScreen.SetActive(false);
         discoveredServers.Clear( );
         ClearLobbyList( );
@@ -131,6 +131,7 @@ public class LobbyUI : MonoBehaviour
         mainMenuScreen.SetActive(false);
         lobbyScreen.SetActive(true);
         errorLabel.text = "";
+        
         RefreshLobbyState( );
     }
 
@@ -138,6 +139,7 @@ public class LobbyUI : MonoBehaviour
     // called by RiftNetworkPlayer's SyncVar hooks whenever any player state changes
     public void RefreshLobbyState( )
     {
+        
         RiftNetworkPlayer[] players = FindObjectsByType<RiftNetworkPlayer>(FindObjectsSortMode.None);
 
 
@@ -146,6 +148,7 @@ public class LobbyUI : MonoBehaviour
 
         RiftNetworkPlayer p1 = players.Length > 0 ? players[0] : null;
         RiftNetworkPlayer p2 = players.Length > 1 ? players[1] : null;
+
 
 
         UpdatePlayerPanel(player1NameLabel, p1StatusLabel, p1SelectedIcon, p1PickKnightButton, p1PickWandererButton, p1, 1);
@@ -171,19 +174,25 @@ public class LobbyUI : MonoBehaviour
         RiftNetworkPlayer netPlayer, int slotNumber)
     {
 
+
         bool slotOccupied = netPlayer != null;
         bool isLocalSlot = slotOccupied && netPlayer.isLocalPlayer;
 
         // show "You" tag if this is the local player's slot
         if (!slotOccupied)
         {
-            nameLabel.text = slotNumber == 1 ? "Waiting..." : "Waiting for Player 2...";
+
+            if (slotNumber == 1)
+                nameLabel.text = "Waiting...";
+            else
+                nameLabel.text = "Waiting for player 2";
         } else if (isLocalSlot)
         {
             nameLabel.text = $"Player {slotNumber} (You)";
         } else
         {
             nameLabel.text = $"Player {slotNumber}";
+        
         }
 
 
@@ -191,9 +200,10 @@ public class LobbyUI : MonoBehaviour
         // also disable a button if that character is already taken by the other player
         bool knightTaken = IsCharacterTakenByOther(netPlayer, CharacterChoice.PixelKnight);
         bool wandererTaken = IsCharacterTakenByOther(netPlayer, CharacterChoice.InkWanderer);
-
+        // disable interaction if taken
         pickKnight.interactable = slotOccupied && isLocalSlot && !knightTaken;
         pickWanderer.interactable = slotOccupied && isLocalSlot && !wandererTaken;
+
 
 
         // empty slot...  dim the icon and blank the status
@@ -205,15 +215,16 @@ public class LobbyUI : MonoBehaviour
             return;
         }
 
+
         // update icon and status based on the player's current character pick
         if (netPlayer.selectedCharacter == CharacterChoice.PixelKnight)
         {
-            statusLabel.text = "Pixel Knight ✓";
+            statusLabel.text = "Pixel Knight";
             icon.sprite = pixelKnightIcon;
             icon.color = Color.white;
         } else if (netPlayer.selectedCharacter == CharacterChoice.InkWanderer)
         {
-            statusLabel.text = "Ink Wanderer ✓";
+            statusLabel.text = "Rendered Mage";
             icon.sprite = inkWandererIcon;
             icon.color = Color.white;
         } else
@@ -223,6 +234,8 @@ public class LobbyUI : MonoBehaviour
             icon.color = new Color(1, 1, 1, 0.3f);
         }
     }
+
+
 
     // check if a character is already picked by someone other than the given player
     private bool IsCharacterTakenByOther(RiftNetworkPlayer self, CharacterChoice choice)
@@ -241,9 +254,15 @@ public class LobbyUI : MonoBehaviour
         if (p1 == null || p2 == null) return false;
         if (p1.selectedCharacter == CharacterChoice.None) return false;
         if (p2.selectedCharacter == CharacterChoice.None) return false;
+
         if (p1.selectedCharacter == p2.selectedCharacter) return false;
+
+
+
         return true;
     }
+
+
 
 
 
@@ -259,6 +278,7 @@ public class LobbyUI : MonoBehaviour
         startButton.interactable = false;
     }
 
+
     // clear discovered servers and scan again
     private void OnRefresh( )
     {
@@ -273,6 +293,9 @@ public class LobbyUI : MonoBehaviour
     {
         RiftNetworkManager.singleton.StartGame( );
     }
+
+
+
 
     private void OnLeaveLobby( )
     {
@@ -290,15 +313,18 @@ public class LobbyUI : MonoBehaviour
         AddLobbyEntry(response);
     }
 
+
     // spawn a lobby list entry for the discovered server
     private void AddLobbyEntry(ServerResponse response)
     {
+        // SETUP LOBBY ENTRY UI
+        
         GameObject entry = Instantiate(lobbyEntryPrefab, lobbyListParent);
-        entry.GetComponent<LobbyEntry>( ).Setup(
-            hostName: $"Lobby  {response.EndPoint.Address}",
-            onJoin: ( ) => JoinLobby(response)
+        entry.GetComponent<LobbyEntry>( ).Setup( hostName: $"Lobby  {response.EndPoint.Address}", onJoin: ( ) => JoinLobby(response)
         );
     }
+
+
 
     private void JoinLobby(ServerResponse response)
     {
@@ -312,6 +338,10 @@ public class LobbyUI : MonoBehaviour
             Destroy(child.gameObject);
     }
 
+
+    // ------------------ listerner calls
+
+
     // called by RiftNetworkManager when this client successfully joins a lobby
     public void OnJoinedLobby( ) => ShowLobbyRoom( );
 
@@ -324,11 +354,17 @@ public class LobbyUI : MonoBehaviour
         RefreshLobbyState( );
     }
 
+
+
     // shows a validation error below the start button (e.g. "pick different characters")
     public void ShowStartError(string message)
     {
         errorLabel.text = message;
     }
+
+
+
+
 
     public void SetLocalPlayerLabel(int index) { }
 

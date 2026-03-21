@@ -42,5 +42,11 @@ public class PlayerAnimator : NetworkBehaviour
     public void SetDowned(bool val) => _animator.SetBool("IsDowned", val);
     public void SetDead(bool val) => _animator.SetBool("IsDead", val);
     public void SetKnockback(bool val) => _animator.SetBool("IsKnockedBack", val);
-    public void TriggerAttack( ) => _animator.SetTrigger("AttackTrigger");
+    public void TriggerAttack( )
+    {
+        _animator.SetTrigger("AttackTrigger");
+
+        if (isLocalPlayer)
+            AudioManager.Instance?.PlayMeleeHit( );
+    }
 }

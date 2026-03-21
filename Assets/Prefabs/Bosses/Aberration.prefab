@@ -83,10 +83,6 @@ MonoBehaviour:
   attackRate: 1.5
   attackDamage: 35
   isFinalBoss: 0
-  stage1Root: {fileID: 0}
-  stage2Root: {fileID: 0}
-  stage2SpawnPoint1: {fileID: 0}
-  stage2SpawnPoint2: {fileID: 0}
 --- !u!114 &346751360221725818
 MonoBehaviour:
   m_ObjectHideFlags: 0
